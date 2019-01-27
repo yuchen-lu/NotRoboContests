@@ -1,1 +1,1 @@
-# MIE443Contests
+# NOTCONTESTS
