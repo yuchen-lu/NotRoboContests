@@ -34,7 +34,8 @@ int laserIndex;
 
 bool leftTurn, rightTurn;
 
-
+//double slam_map [][];
+//double raw_map [][];
 
 // callback functions defined below
 // each func receive a msg param with a specific variable type
@@ -52,6 +53,21 @@ else if (msg.bumper == 2)
 }
 
 
+// if the shortest distance happened on the left, turn right; otherwise turn left
+// result change leftTurn
+
+void TurnDirecion(int laserIndex, int laserSize,  int laserOffset){
+	ROS_INFO("laserIndex = : %i laserSize = : %i", "lazerOffset = %i \n", laserIndex, laserSize, laserOffset);
+
+	if (laserIndex - laserSize/2 - laserOffset != laserIndex-laserSize/2 + laserOffset){   
+		if (laserIndex - laserSize/2 - laserOffset > laserIndex-laserSize/2 + laserOffset)
+			leftTurn = !leftTurn;
+		else
+			rightTurn = !rightTurn;	
+	}
+	
+}
+
 // LaserScan msg: http://docs.ros.org/melodic/api/sensor_msgs/html/msg/LaserScan.html
 // Inside the laserCallback function calculate the size of the msg->ranges array. Also calculate the desired field of
 // view. This parameter will be used to reduce the number of indices in the array that we will consider when
@@ -61,10 +77,10 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	//fill with your code
 	laserSize = (msg->angle_max - msg->angle_min)/msg->angle_increment;
 	laserOffset = desiredAngle*pi/(180*msg->angle_increment);
-	ROS_INFO("Size of laser scan array: %i and size of offset: %i", laserSize, laserOffset);// Print the size of the array and the offset for testing purposes.
+	//ROS_INFO("Size of laser scan array: %i and size of offset: %i", laserSize, laserOffset);// Print the size of the array and the offset for testing purposes.
 
 	// Below: distance measurement by searching the “ranges” array
-	// done by finding the smallest distance in the desired field of view
+	// done by finding the smallest distance in the desired field of view, in meters
 	// The desired field of view is defined by a negative and positive laseroffset from the heading angle of the robot.
 	//  If the desired field of view > sensor's, use sensor's instead
 
@@ -87,17 +103,13 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		}
 		
 	}
-	if (laserRange == 11){
+	if (laserRange == 11){ 
 		laserRange = 0;
 	}
 
-	if (laserIndex - laserSize/2 - laserOffset != laserIndex-laserSize/2 + laserOffset){
-		if (laserIndex - laserSize/2 - laserOffset > laserIndex-laserSize/2 + laserOffset)
-			leftTurn = !leftTurn;
-		else
-			rightTurn = !rightTurn;	
-	}
-	
+	TurnDirecion(laserIndex, laserSize, laserOffset);
+
+
 }
 
 
@@ -115,7 +127,20 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 
 
 
+void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg){
 
+	map_width = msg->info.width;
+	map_height = msg->info.height;
+	//convert map info to 2d array
+	int row=0, col=0;
+	while (row <= map_width>) {
+	 	while (col <=map_height) 
+		 slam_map[row][col] = raw_map[row + col * map_width];
+
+	 }
+
+
+}
 
 
 
@@ -128,6 +153,10 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "image_listener");   //init a node called image_listener
 	ros::NodeHandle nh; //
 	teleController eStop;
+
+
+	//create a subscriber named map_sub, subscrite to topic named map within gmapping, 
+	ros::Subscriber map_sub = nh.subscribe("map", 10, &mapCallback);
 
 
 	//create a subscriber named bumper_sub; subscribe to topic named bumper; size of msg quene; ROS will call  bumperCallback() function whenever a new message arrives 
@@ -164,23 +193,47 @@ int main(int argc, char **argv)
 		//...................................
 
 		//fill with your code
-	/*	if (posX < 0.5 && yaw < pi/12 &&!bumperRight && !bumperLeft)
+
+
+		if (posX < 0.5 && yaw < pi/12 &&!bumperRight && !bumperLeft && laserRange > 0.7)
 		{
 			angular = 0.0;
 			linear = 0.2;
 		}
-		else if (posX > 0.5 && yaw < pi/2 &&!bumperRight && !bumperLeft && !bumperCenter)
+		else if (posX > 0.4 && yaw < pi/2 &&!bumperRight && !bumperLeft && !bumperCenter && laserRange > 0.5)
 		{
-			angular = pi/6;
+			angular = pi/6; // turn base 90 degree???
 			linear = 0.0;
+		}
+
+		else if (laserRange > 1.0 && !bumperRight && !bumperCenter && !bumperLeft)
+		{
+			if (yaw < 17*pi/36 || posX > 0.6)
+			{
+				angular = pi/12;
+				linear = 0.1;
+			}
+			else if (yaw > 19*pi/36 || posX < 0.4)
+			{
+				angular = -pi/12;
+				linear = 0.1;
+			}
+			else
+			{
+				angular = 0;
+				linear = 0.1;
+			}
 		}
 		else
 		{
 			angular = 0.0;
-			linear =0.0;
+			linear =0.1;
 		}
-	*/
 
+
+
+	
+/*
 	if(laserRange > 0.7){
 		angular= -0.07;
 		linear = 0.1;
@@ -195,7 +248,7 @@ int main(int argc, char **argv)
 		linear = 0.0;
 	}
 	
-
+*/
 	
 
 	
