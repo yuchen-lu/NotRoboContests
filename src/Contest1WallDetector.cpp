@@ -98,7 +98,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 			rightTurn = !rightTurn;	
 	}
 	
-	laserFront = msg->ranges[(laserSize+1)/2]; // detects any object right in front of the turtlebot
+	laserFront = msg->ranges[(laserSize)/2]; // detects any object right in front of the turtlebot
 	
 }
 
