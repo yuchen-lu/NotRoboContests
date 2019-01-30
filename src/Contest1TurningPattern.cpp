@@ -255,10 +255,6 @@ int main(int argc, char **argv)
 
 
 
-
-
-
-
 int TurningPattern1[];
 int Pattern=0;
 int PatternCounter=0;
@@ -267,24 +263,28 @@ double LaserRight=msg->ranges[639];
 
 
 while (Pattern<6){
-	while (LaserLeft > 0.6 && LaserRight >0.6 && LaserFront >0.6){
+	while (LaserLeft > 0.6 && LaserRight >0.6 && LaserFront >0.6){ // Check if any obstacle within the range
 		linear = 0.2;
 		angular = 0;
 	}
-	if (LaserFront < 0.6){
-		if(LaserRight < 0.6){
-			angular = -pi/2;
+	if (LaserFront < 0.6){  //obstacle in the front
+		if(LaserRight < 0.6){  // obstacle on the right
+			angular = pi/2;
 			linear = 0;
-			TurningPattern1[PatternCounter]=0;
+			TurningPattern1[PatternCounter]=0;  //left turn, input 0 into the turningpattern
 			PatternCounter++;
 		}
 		else {
-			angular = pi/2;
+			angular = -pi/2;// obstacle on the left, turn right and input 1 into the array
 			linear = 0;
 			TurningPttern1[PatternCounter]=1;
 			PatternCounter++;
 		}
-		if (PatternCounter >= 1 && TurningPattern[PatternCounter] != TurningPattern[PatternCounter - 1]){
+		    vel.angular.z = angular; 
+  			vel.linear.x = linear;
+
+			vel_pub.publish(vel);
+		if (PatternCounter >= 1 && TurningPattern[PatternCounter] != TurningPattern[PatternCounter - 1]){// compare the pattern if not equal, then zero the array
 			Pattern=0;
 		}
 		else {
@@ -302,10 +302,6 @@ while (Pattern<6){
 			vel_pub.publish(vel);
 }
 
-if (TurningPattern[PatternCounter]=1){
-	
-}
-	
 
 	
 
