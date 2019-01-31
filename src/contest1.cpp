@@ -283,7 +283,7 @@ int main(int argc, char **argv)
 				//ROS_INFO ("entered loop");
 				
 				ros::spinOnce(); // invoke all callback funcs and publish msgs
-				std::cout<<laserRange;
+				//std::cout<<laserRange;
 
 				if (laserRange <= 1 && i == 0){
 					dist_to_left = laserIndex - laserSize/2 + laserOffset;
@@ -308,8 +308,10 @@ int main(int argc, char **argv)
 
 				else if (laserRange <= 1 && leftTurn == 1 && i==0){ // if wall on the left side of turtlebot, turn 90 deg to keep wall on the right
 					
+					//usleep(1000000);
+					//ROS_INFO ("entered loop");
 					
-					while (abs(yaw-yawInitial) <= 0.6*pi) {
+					while (abs(yawInitial-yaw) <= 0.4*pi) {
 						angular = pi/6;
 						linear = 0;
 
@@ -319,7 +321,7 @@ int main(int argc, char **argv)
 						
 						ros::spinOnce();
 					}
-					usleep(1000000);
+					usleep(2000000);
 					break;
 				} 
 
@@ -327,16 +329,17 @@ int main(int argc, char **argv)
 					laserNew = laserFront; // store the laserFront distance in array
 					//std::cout<<leftTurn;
 
-					if (i == 0){
-						//ROS_INFO ("entered loop");
-						angular = -pi/30;
+					if (i <5){
+						//ROS_INFO ("entered turn");
+						angular = -pi/20;
 						linear = 0;
 						laserOld = laserNew;
 						i ++;
 					}
 					else{
 						if (laserNew <= laserOld){ // if laserfront distance increases, keep turning left
-							angular = -pi/30;
+							//ROS_INFO ("entered turn");
+							angular = -pi/10;
 							linear = 0;
 							laserOld = laserNew;
 						}
@@ -344,6 +347,7 @@ int main(int argc, char **argv)
 							yawZero = yaw;
 							walldetector = 1;
 							i=-1;
+							usleep(1000000);
 							
 							break;
 						}
@@ -360,18 +364,30 @@ int main(int argc, char **argv)
 		}
 
 		if (walldetector ==1) {
+
+			//usleep(1000000);
+			//ROS_INFO ("entered 90turn");
 			
 			angular = -pi/6;
 			linear = 0;
 
-			if (abs(yaw-yawZero)>= pi/2-pi/20) {
-				yawZero = yaw;
-				walldetector ++;
+			if (abs(yaw-yawZero)<= pi/2-pi/20) {
+				//ROS_INFO (yaw);
+				//ROS_INFO("\n");
+				//std::cout<<yaw;
+				//std::cout<<"\n";
+				vel.angular.z = angular; 
+				vel.linear.x = linear;
+				vel_pub.publish(vel);
+						
+				ros::spinOnce();
+				continue;
 			}
+			walldetector ++;
 			
 		}
 
-		if (walldetector !=0 && walldetector !=1) {
+		/*if (walldetector !=0 && walldetector !=1) {
 			
 			if (laserRange <= 1){
 			dist_to_left = laserIndex - laserSize/2 + laserOffset;
@@ -408,7 +424,7 @@ int main(int argc, char **argv)
   		vel.angular.z = angular; 
   		vel.linear.x = linear;
 
-  		vel_pub.publish(vel);   // vel_pub node publishes vel msg
+  		vel_pub.publish(vel);   // vel_pub node publishes vel msg*/
 		leftTurn = 0;
 		rightTurn = 0;
 
@@ -417,3 +433,4 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+
