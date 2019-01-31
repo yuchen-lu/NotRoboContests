@@ -31,6 +31,8 @@ bool bumperLeft = 0, bumperCenter = 0, bumperRight = 0;
 double laserRange = 10;
 int laserSize = 0, laserOffset = 0, desiredAngle = 10;
 int laserIndex;
+double laserFront;
+
 
 bool leftTurn, rightTurn;
 
@@ -81,7 +83,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	//fill with your code
 	laserSize = (msg->angle_max - msg->angle_min)/msg->angle_increment;
 	laserOffset = desiredAngle*pi/(180*msg->angle_increment);
-	ROS_INFO("Size of laser scan array: %i and size of offset: %i \n", laserSize, laserOffset);// Print the size of the array and the offset for testing purposes.
+	//ROS_INFO("Size of laser scan array: %i and size of offset: %i \n", laserSize, laserOffset);// Print the size of the array and the offset for testing purposes.
 
 	// Below: distance measurement by searching the “ranges” array
 	// done by finding the smallest distance in the desired field of view, in meters
@@ -114,6 +116,8 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	}
 
 	//TurnDirecion(laserIndex, laserSize, laserOffset);
+
+	laserFront = msg->ranges[320]; // detects any object right in front of the turtlebot
 
 
 }
@@ -188,7 +192,10 @@ int main(int argc, char **argv)
 	start  = std::chrono::system_clock::now(); //start timer
 	uint64_t secondsElapsed = 0; //the timer just started, we know less than 480, no neded to change
 
-
+	int walldetector = 0, i=0; // define variables for wall detection
+	double laserOld = 0, laserNew = 0;
+	double yawZero;
+	double yawInitial = yaw;
 
 	while(ros::ok() && secondsElapsed <=480 ){
 	//	ROS_INFO("Position: (%f, %f) Orientation: %f laseRange: %f .", posX, posY, yaw*180/pi, laserRange); // print pos and orientation for testing
@@ -239,47 +246,165 @@ int main(int argc, char **argv)
 	// 	ROS_INFO("Orientation: %f laseRange: %f .\n",  yaw*180/pi, laserRange); // print pos and orientation for testing
 
 
-	if (laserRange <= 1){
-		dist_to_left = laserIndex - laserSize/2 + laserOffset;
-		dist_to_right = laserSize/2 + laserOffset-laserIndex;
-		ROS_INFO("laser index : %i \n" ,laserIndex);
-		ROS_INFO("laser index dis to left: %i, laserindex dis to right %i \n", dist_to_left, dist_to_right);
-		if (dist_to_left > dist_to_right) 
-				leftTurn = 1;
-		else if (dist_to_left <= dist_to_right)
-				rightTurn = 1;		
-	}
-	// note: -ve angular speed -> cw
+		/*if (laserRange <= 1){
+			dist_to_left = laserIndex - laserSize/2 + laserOffset;
+			dist_to_right = laserSize/2 + laserOffset-laserIndex;
+			ROS_INFO("laser index : %i \n" ,laserIndex);
+			ROS_INFO("laser index dis to left: %i, laserindex dis to right %i \n", dist_to_left, dist_to_right);
+			if (dist_to_left > dist_to_right) 
+					leftTurn = 1;
+			else if (dist_to_left <= dist_to_right)
+					rightTurn = 1;		
+		}
+		// note: -ve angular speed -> cw
 
-	if(laserRange > 1){
-	//	ROS_INFO("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS \n");
-		angular = 0;
-		linear = 0.1;
-	}
-	if(rightTurn == 1){
-	//	ROS_INFO("RRRRRRRRRRRRRRRRRRRRRRRRRRRR \n");
-		angular= -pi/6;
-		linear=0.0;
-	}
+		if(laserRange > 1){
+		//	ROS_INFO("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS \n");
+			angular = 0;
+			linear = 0.1;
+		}
+		if(rightTurn == 1){
+		//	ROS_INFO("RRRRRRRRRRRRRRRRRRRRRRRRRRRR \n");
+			angular= -pi/6;
+			linear=0.0;
+		}
 
-	if(leftTurn == 1){
-		angular= pi/6;
-	//	ROS_INFO("LLLLLLLLLLLLLLLLLLLLLLLLLLLLL \n");
+		if(leftTurn == 1){
+			angular= pi/6;
+		//	ROS_INFO("LLLLLLLLLLLLLLLLLLLLLLLLLLLLL \n");
 
-		linear = 0.0;
-	}
+			linear = 0.0;
+		}*/
+
+		while (walldetector == 0) {
+
+			
+			while (i>= 0) { // loop if turtlebot is not // to wall
+				//ROS_INFO ("entered loop");
+				
+				ros::spinOnce(); // invoke all callback funcs and publish msgs
+				std::cout<<laserRange;
+
+				if (laserRange <= 1 && i == 0){
+					dist_to_left = laserIndex - laserSize/2 + laserOffset;
+					dist_to_right = laserSize/2 + laserOffset-laserIndex;
+					//ROS_INFO("laser index : %i \n" ,laserIndex);
+					//ROS_INFO("laser index dis to left: %i, laserindex dis to right %i \n", dist_to_left, dist_to_right);
+					if (dist_to_left > dist_to_right) {
+							leftTurn = 1;
+							rightTurn = 0;
+					}
+
+					else if (dist_to_left <= dist_to_right) {
+							rightTurn = 1;
+							leftTurn = 0;
+					}		
+				}
+
+				if (laserRange >1 && i==0) { // keep straight when no wall detected
+					angular = 0;
+					linear = 0.2;
+				}
+
+				else if (laserRange <= 1 && leftTurn == 1 && i==0){ // if wall on the left side of turtlebot, turn 90 deg to keep wall on the right
+					
+					
+					while (abs(yaw-yawInitial) <= 0.6*pi) {
+						angular = pi/6;
+						linear = 0;
+
+						vel.angular.z = angular; 
+						vel.linear.x = linear;
+						vel_pub.publish(vel);
+						
+						ros::spinOnce();
+					}
+					usleep(1000000);
+					break;
+				} 
+
+				else{
+					laserNew = laserFront; // store the laserFront distance in array
+					//std::cout<<leftTurn;
+
+					if (i == 0){
+						//ROS_INFO ("entered loop");
+						angular = -pi/30;
+						linear = 0;
+						laserOld = laserNew;
+						i ++;
+					}
+					else{
+						if (laserNew <= laserOld){ // if laserfront distance increases, keep turning left
+							angular = -pi/30;
+							linear = 0;
+							laserOld = laserNew;
+						}
+						if (laserNew > laserOld) { // until laserfront reading start to decreases, turtlebot is now perpendicular to wall
+							yawZero = yaw;
+							walldetector = 1;
+							i=-1;
+							
+							break;
+						}
+					}
+				}
+
+				vel.angular.z = angular; 
+				vel.linear.x = linear;
+
+				vel_pub.publish(vel);
+
+			}
+
+		}
+
+		if (walldetector ==1) {
+			
+			angular = -pi/6;
+			linear = 0;
+
+			if (abs(yaw-yawZero)>= pi/2-pi/20) {
+				yawZero = yaw;
+				walldetector ++;
+			}
+			
+		}
+
+		if (walldetector !=0 && walldetector !=1) {
+			
+			if (laserRange <= 1){
+			dist_to_left = laserIndex - laserSize/2 + laserOffset;
+			dist_to_right = laserSize/2 + laserOffset-laserIndex;
+			ROS_INFO("laser index : %i \n" ,laserIndex);
+			ROS_INFO("laser index dis to left: %i, laserindex dis to right %i \n", dist_to_left, dist_to_right);
+			if (dist_to_left > dist_to_right) 
+					leftTurn = 1;
+			else if (dist_to_left <= dist_to_right)
+					rightTurn = 1;		
+			}
+			// note: -ve angular speed -> cw
+
+			if(laserRange > 1){
+			//	ROS_INFO("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS \n");
+				angular = 0;
+				linear = 0.1;
+			}
+			if(rightTurn == 1){
+			//	ROS_INFO("RRRRRRRRRRRRRRRRRRRRRRRRRRRR \n");
+				angular= -pi/6;
+				linear=0.0;
+			}
+
+			if(leftTurn == 1){
+				angular= pi/6;
+			//	ROS_INFO("LLLLLLLLLLLLLLLLLLLLLLLLLLLLL \n");
+
+				linear = 0.0;
+			}
+		}
+
 	
-
-
-
-/*
-linear = 0;
-angular = -pi/4;
-	*/
-
-	
-
-
   		vel.angular.z = angular; 
   		vel.linear.x = linear;
 
