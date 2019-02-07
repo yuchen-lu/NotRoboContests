@@ -78,13 +78,37 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	// The desired field of view is defined by a negative and positive laseroffset from the heading angle of the robot.
 	//  If the desired field of view > sensor's, use sensor's instead
 
+	float ranges[639];
+	int j=0;
+
+	for(int i=0;i<324;i++){
+		j=0;
+		do{
+			ranges[i]=msg->ranges[i+j];
+			j++;
+		}while(isnan(ranges[i]));
+	}
+
+	for(int i=638;i>=324;i--){
+		j=0;
+		do{
+			ranges[i]=msg->ranges[i-j];
+			j--;
+		}while(isnan(ranges[i]));
+	}	
+
+	for(int i=0;i<=638;i++){
+		cout<<ranges[i];
+		cout<<",";
+	}
+
 	laserRange = 11;
 	laserFront = 11; 
 
 	if (desiredAngle*pi/180 <msg->angle_max && -desiredAngle*pi/180 >msg->angle_min){
 		for (int i =laserSize/2 - laserOffset; i<laserSize/2 + laserOffset; i++){
-			if (laserRange > msg->ranges[i]){
-				laserRange = msg->ranges[i];
+			if (laserRange > ranges[i]){
+				laserRange = ranges[i];
 				laserIndex = i;
 			}
 		}
@@ -93,8 +117,8 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	else
 	{
 		for ( int i =0; i < laserSize; i++){
-			if (laserRange>msg->ranges[i]){
-				laserRange = msg ->ranges[i];
+			if (laserRange>ranges[i]){
+				laserRange = ranges[i];
 				laserIndex = i;
 			}
 		}
@@ -111,13 +135,20 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 			rightTurn = !rightTurn;	
 	}
 
-	if (laserIndex <= 374 && laserIndex >= 264 && laserRange != 0) {
-		laserFront = laserRange;
+
+	for (int i= 264; i<= 374; i++) {
+		if (laserFront > ranges[i]) {
+			laserFront = ranges[i];
+		}
 	}
 
+	/*if (laserIndex <= 374 && laserIndex >= 264 && laserRange != 0) {
+		laserFront = laserRange;
+	}*/
+
 	//step 2, step 3
-	leftMost = msg->ranges[638];
-	rightMost = msg->ranges[0];
+	leftMost = ranges[638];
+	rightMost = ranges[0];
 	angleMax=msg->angle_max;
 		
 }
@@ -161,6 +192,7 @@ void turn(double angle) {
 	geometry_msgs::Twist vel;
 
 	ros::spinOnce();
+	double yawInitial = yaw;
 	double yawGoal = yaw + angle;
 	//double yawOld = yaw;
 	if (yawGoal > pi) {
@@ -170,10 +202,10 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (yaw <= yawGoal) {
+	while (abs(yaw-yawInitial) < abs(angle)) {
 
-		double angular = sgn(angle)*pi/6;
-		double linear = 0;
+		angular = sgn(angle)*pi/6;
+		linear = 0;
 
 		vel.angular.z = angular; 
 		vel.linear.x = linear;
@@ -181,6 +213,9 @@ void turn(double angle) {
 		
 		ros::spinOnce();
 	}
+	angular = 0;
+	linear = 0;
+
 }
 
 void straight () {
@@ -229,9 +264,6 @@ void step2(){ //turn right at intersections
 	double newRight;
 
 	for(;bigturn_counter<=12;) {
-		cout<<"step 2     ";
-		cout<<bigturn_counter;
-		cout<<"\n";
 
 		newRight= rightMost;
 
@@ -254,7 +286,7 @@ void step2(){ //turn right at intersections
 				
 				ros::spinOnce();
 			}
-			turn(sgn(-1)*0.5*pi);
+			turn(-0.5*pi);
 			bigturn_counter++;
 		}
 
@@ -279,9 +311,6 @@ void step3(){ //turn left at intersections
 	double newLeft;
 
 	for(;bigturn_counter<=18;) {
-		cout<<"step 3     ";
-		cout<<bigturn_counter;
-		cout<<"\n";
 
 		newLeft=leftMost;
 
@@ -351,18 +380,16 @@ int main(int argc, char **argv)
 
 		left_or_right(); // determine if there is anything on the side;
 		
-		if (bigturn_counter <= -1){  // step 1
+		if (bigturn_counter <= 0){  // step 1
 			turn_or_straight (-1); // right turn if face a wall
 		}
-		else if (bigturn_counter>=0&&bigturn_counter<=12){
+		
+		else if (bigturn_counter>=1 && bigturn_counter<=12){
 			step2();
 		}
-		else if (bigturn_counter>12&&bigturn_counter<=18){
-			cout<<"step 3     ";
-			cout<<bigturn_counter;
-			cout<<"\n";
+		/*else if (bigturn_counter> 12 &&bigturn_counter<=18){
 			step3();
-		}
+		}*/
 
   		vel.angular.z = angular; 
   		vel.linear.x = linear;
