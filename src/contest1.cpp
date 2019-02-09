@@ -34,12 +34,10 @@ int laserIndex;
 double laserFront = 11;
 
 bool leftTurn, rightTurn;
-int dist_to_left, dist_to_right;
 
-double left_most_dist, right_most_dist;
-double mid_left_dist, mid_right_dist;
+double laserRangeLeft;
+double laserRangeRight;
 bool step1 = 1;// if step 1 is 1, run step 1; if step 1 is 0, run step 2
-//sint dist_to_left, dist_to_right;
 //double slam_map [][];
 //double raw_map [][];
 int bigturn_counter = 0;
@@ -54,12 +52,12 @@ double angleMax;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
 
-if (msg.bumper == 0)
-	bumperLeft = !bumperLeft;
-else if (msg.bumper == 1)
-	bumperCenter = !bumperCenter;
-else if (msg.bumper == 2)
-	bumperRight = !bumperRight;
+	if (msg.bumper == 0)
+		bumperLeft = !bumperLeft;
+	else if (msg.bumper == 1)
+		bumperCenter = !bumperCenter;
+	else if (msg.bumper == 2)
+		bumperRight = !bumperRight;
 }
 
 // LaserScan msg: http://docs.ros.org/melodic/api/sensor_msgs/html/msg/LaserScan.html
@@ -97,18 +95,22 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		}while(isnan(ranges[i]));
 	}	
 
-	for(int i=0;i<=638;i++){
-		cout<<ranges[i];
-		cout<<",";
-	}
 
 	laserRange = 11;
 	laserFront = 11; 
 
 	if (desiredAngle*pi/180 <msg->angle_max && -desiredAngle*pi/180 >msg->angle_min){
-		for (int i =laserSize/2 - laserOffset; i<laserSize/2 + laserOffset; i++){
+		for (int i =laserSize/2 - laserOffset; i<laserSize/2; i++){
 			if (laserRange > ranges[i]){
 				laserRange = ranges[i];
+				laserRangeRight = ranges[i];
+				laserIndex = i;
+			}
+		}
+		for (int i =laserSize/2; i<laserSize/2+laserOffset; i++){
+			if (laserRange > ranges[i]){
+				laserRange = ranges[i];
+				laserRangeLeft = ranges[i];
 				laserIndex = i;
 			}
 		}
@@ -116,9 +118,17 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 
 	else
 	{
-		for ( int i =0; i < laserSize; i++){
+		for ( int i =0; i < laserSize/2; i++){
 			if (laserRange>ranges[i]){
 				laserRange = ranges[i];
+				laserRangeRight = ranges[i];
+				laserIndex = i;
+			}
+		}
+		for(int i=laserSize/2;i<laserSize;i++){
+			if (laserRange>ranges[i]){
+				laserRange = ranges[i];
+				laserRangeLeft = ranges[i];
 				laserIndex = i;
 			}
 		}
@@ -224,27 +234,41 @@ void straight () {
 }
 
 void smallTurn(int turnDirection){
-	angular= sgn(turnDirection)*pi/6;
+	angular= sgn(turnDirection)*pi/15;
 	linear=0.0;
 }
 
 void turn_or_straight (int turnDirection){
 	// determine if the turtlebot need to do small turn, big turn or straight 
-	if(laserRange > 1){
+	if(laserRange > 0.7){
 		straight();
 	}
-
-	if (laserFront <= 1 && laserFront != 0) { // turn left/right if face a wall
-		turn(sgn(turnDirection)*0.5*pi);
-		bigturn_counter++;
-	}
-
-	else if (rightTurn == 1 && laserFront > 1) { // slight right if too close to wall on the left
-		smallTurn(-1);
-	}
-
-	else if (leftTurn == 1 && laserFront > 1) { // slight right if too close to wall on the left
-		smallTurn(1);
+	else if(laserRange<=0.7){
+		if(laserFront<=0.7 && laserFront!=0){ //front wall
+			turn(sgn(turnDirection)*0.5*pi);
+			bigturn_counter++;
+		}
+		else if(laserFront>0.7){ //front clear
+			if(laserRangeLeft<=0.7&&laserRangeRight<=0.7){ //both wall
+				if(abs(laserRangeLeft-laserRangeRight)<=0.1){ //difference within tolorence
+					straight();
+				}
+				else{
+					if(laserRangeLeft>=laserRangeRight){
+						smallTurn(1);
+					}
+					else{
+						smallTurn(-1);
+					}
+				}
+			}
+			else if(laserRangeLeft<=0.7&&laserRangeRight>0.7){ //left wall
+				smallTurn(-1);
+			}
+			else if(laserRangeLeft>0.7&&laserRangeRight<=0.7){ //right wall
+				smallTurn(1);
+			}
+		}
 	}
 }
 
@@ -276,6 +300,8 @@ void step2(){ //turn right at intersections
 			
 		}
 		else if(newRight-oldRight>=0.5){ //intersection
+			cout<<"detected";
+			cout<<"\n";
 			double currentX=posX;
 			while(abs(currentX-posX)<(oldRight+0.2)*cos(angleMax)){
 				straight(); 
@@ -380,7 +406,7 @@ int main(int argc, char **argv)
 
 		left_or_right(); // determine if there is anything on the side;
 		
-		if (bigturn_counter <= 0){  // step 1
+		if (bigturn_counter <= 1){  // step 1
 			turn_or_straight (-1); // right turn if face a wall
 		}
 		
