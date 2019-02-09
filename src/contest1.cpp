@@ -291,7 +291,7 @@ void step2(){ //turn right at intersections
 
 		newRight= rightMost;
 
-		if(newRight-oldRight<0.5){ //no intersection
+		if(newRight-oldRight<0.3){ //no intersection
 			turn_or_straight(-1);
 
 			vel.angular.z = angular; 
@@ -299,11 +299,16 @@ void step2(){ //turn right at intersections
 			vel_pub.publish(vel);
 			
 		}
-		else if(newRight-oldRight>=0.5){ //intersection
+		else if(newRight-oldRight>=0.3){ //intersection
 			cout<<"detected";
 			cout<<"\n";
 			double currentX=posX;
-			while(abs(currentX-posX)<(oldRight+0.2)*cos(angleMax)){
+			double currentY=posY;
+			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldRight+0.2)*cos(angleMax)){
+				cout<<currentX;
+				cout<<"\t";
+				cout<<posX;
+				cout<<"\n";
 				straight(); 
 				
 				vel.angular.z = angular; 
@@ -314,6 +319,7 @@ void step2(){ //turn right at intersections
 			}
 			turn(-0.5*pi);
 			bigturn_counter++;
+			newRight=rightMost;
 		}
 
 		oldRight=newRight;
@@ -332,34 +338,43 @@ void step3(){ //turn left at intersections
 	geometry_msgs::Twist vel;
 
 	ros::spinOnce();
-
-	double oldLeft = leftMost;
+	
+	double oldLeft = leftMost; //initialize oldRight
 	double newLeft;
 
-	for(;bigturn_counter<=18;) {
+	for(;bigturn_counter<=24;) {
 
-		newLeft=leftMost;
+		newLeft= leftMost;
 
-		if(newLeft-oldLeft<0.5){ //no intersection
-			turn_or_straight(-1);
+		if(newLeft-oldLeft<0.3){ //no intersection
+			turn_or_straight(1);
 
 			vel.angular.z = angular; 
 			vel.linear.x = linear;
 			vel_pub.publish(vel);
+			
 		}
-		else if(newLeft-oldLeft>=0.5){ //intersection
+		else if(newLeft-oldLeft>=0.3){ //intersection
+			cout<<"detected";
+			cout<<"\n";
 			double currentX=posX;
-			while(abs(currentX-posX)<(oldLeft+0.2)*cos(angleMax)){
+			double currentY=posY;
+			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldLeft+0.2)*cos(angleMax)){
+				cout<<currentX;
+				cout<<"\t";
+				cout<<posX;
+				cout<<"\n";
 				straight(); 
-
+				
 				vel.angular.z = angular; 
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 				
-				ros::spinOnce(); 
+				ros::spinOnce();
 			}
-			turn(sgn(1)*0.5*pi);
+			turn(0.5*pi);
 			bigturn_counter++;
+			newLeft=leftMost;
 		}
 
 		oldLeft=newLeft;
@@ -406,16 +421,23 @@ int main(int argc, char **argv)
 
 		left_or_right(); // determine if there is anything on the side;
 		
-		if (bigturn_counter <= 1){  // step 1
+		if (bigturn_counter <= 6){  // step 1
 			turn_or_straight (-1); // right turn if face a wall
 		}
 		
-		else if (bigturn_counter>=1 && bigturn_counter<=12){
-			step2();
+		else if (bigturn_counter>6 && bigturn_counter<=12){
+			step2(); //right turn at intersection
 		}
-		/*else if (bigturn_counter> 12 &&bigturn_counter<=18){
-			step3();
-		}*/
+		else if (bigturn_counter> 12 &&bigturn_counter<=18){
+			turn_or_straight (1); // left turn if face a wall
+		}
+		else if (bigturn_counter> 18 &&bigturn_counter<=24){
+			step3(); // left turn at intersection
+		}
+		else if (bigturn_counter>24){
+			cout<<"Done";
+		}
+
 
   		vel.angular.z = angular; 
   		vel.linear.x = linear;
