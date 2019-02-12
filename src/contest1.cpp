@@ -50,6 +50,7 @@ double leftMost;
 double rightMost;
 double angleMax;
 
+double laserFrontAvg, laserRangeAvg, laserRangeLeftAvg, laserRangeRightAvg;
 ///setup
 
 //fucntions
@@ -81,6 +82,8 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 
 	float ranges[639];
 	int j=0;
+	int isNan=1;
+	float k;
 
 	for(int i=0;i<324;i++){
 		j=0;
@@ -96,7 +99,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 			ranges[i]=msg->ranges[i-j];
 			j--;
 		}while(isnan(ranges[i]));
-	}	
+	} 	
 
 
 	laserRange = 11;
@@ -141,17 +144,19 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		laserRange = 0;
 	}
 
-	if (laserIndex - laserSize/2 - laserOffset != laserIndex-laserSize/2 + laserOffset){
+	/*if (laserIndex - laserSize/2 - laserOffset != laserIndex-laserSize/2 + laserOffset){
 		if (laserIndex - laserSize/2 - laserOffset > laserIndex-laserSize/2 + laserOffset)
 			leftTurn = !leftTurn;
 		else
 			rightTurn = !rightTurn;	
-	}
+	}*/
 
+	double laserFrontTotal = 0;
 
 	for (int i= 315; i< 325; i++) {
-		double laserFrontTotal += range[i];
+		laserFrontTotal += ranges[i];
 	}
+	
 	laserFront = laserFrontTotal/10;
 
 	/*if (laserIndex <= 374 && laserIndex >= 264 && laserRange != 0) {
@@ -214,7 +219,7 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (abs(yaw-yawInitial) <= abs(angle)) {
+	while (abs(yaw-yawInitial) <= abs(angle*0.9)) {
 
 		angular = sgn(angle)*pi/6;
 		linear = 0;
@@ -227,15 +232,11 @@ void turn(double angle) {
 	}
 	angular = 0;
 	linear = 0;
-	for(int i=0;i<=2000;i++){
-
-	}
-
 }
 
 void straight () {
 	angular = 0;
-	linear = 0.1;
+	linear = 0.2;
 }
 
 void smallTurn(int turnDirection){
@@ -243,24 +244,113 @@ void smallTurn(int turnDirection){
 	linear=0.0;
 }
 
+void readLaser() {
+
+	double front[10], range[10], rangeLeft[10], rangeRight[10];
+	int counter=0;
+
+	ros::NodeHandle nh;
+	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
+	
+ 	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
+	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
+
+	geometry_msgs::Twist vel;
+
+	for (int i=0; i<10; i++) {
+		ros::spinOnce();
+		front[i] = laserFront;
+		range[i] = laserRange;
+		rangeLeft[i] = laserRangeLeft;
+		rangeRight[i] = laserRangeRight;
+		straight();
+
+		vel.angular.z = angular; 
+		vel.linear.x = linear;
+		vel_pub.publish(vel);
+	}
+
+ // read laserFront 
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){
+			if (abs(front[j] - front[j+k]) <= 0.01) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			laserFrontAvg = front[j];
+			break;
+		}
+		counter =0;
+	}
+
+ // read laserRange 
+
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){
+			if (abs(range[j] - range[j+k]) <= 0.01) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			laserRangeAvg = range[j];
+			break;
+		}
+		counter =0;
+	}
+
+// read laserRangeLeft
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){
+			if (abs(rangeLeft[j] - rangeLeft[j+k]) <= 0.01) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			laserRangeLeftAvg = rangeLeft[j];
+			break;
+		}
+		counter =0;
+	}
+
+// read laserRangeRight
+
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){
+			if (abs(rangeRight[j] - rangeRight[j+k]) <= 0.05) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			laserRangeRightAvg = rangeRight[j];
+			break;
+		}
+		counter =0;
+	}
+
+}
+
 void turn_or_straight (int turnDirection){
+
+	readLaser();
 	// determine if the turtlebot need to do small turn, big turn or straight 
-	if(laserRange > 0.6){
+	if(laserRangeAvg > 0.6){
 		straight();
 	}
-	else if(laserRange<=0.6){
-		if(laserFront<=0.6 && laserFront!=0){ //front wall
+	else if(laserRangeAvg<=0.6){
+		
+		if(laserFrontAvg<=0.6){ //front wall
 			cout<<"wallllllll \n";
 			turn(sgn(turnDirection)*0.5*pi);
 			bigturn_counter++;
 		}
-		else if(laserFront>0.6){ //front clear
-			if(laserRangeLeft<=0.6&&laserRangeRight<=0.6){ //both wall
-				if(abs(laserRangeLeft-laserRangeRight)<=0.1){ //difference within tolorence
+		else if(laserFrontAvg>0.6){ //front clear
+			if(laserRangeLeftAvg<=0.6&&laserRangeRightAvg<=0.6){ //both wall
+				if(abs(laserRangeLeftAvg-laserRangeRightAvg)<=0.1){ //difference within tolorence
 					straight();
 				}
 				else{
-					if(laserRangeLeft>=laserRangeRight){
+					if(laserRangeLeftAvg>=laserRangeRightAvg){
 						smallTurn(1);
 					}
 					else{
@@ -268,10 +358,10 @@ void turn_or_straight (int turnDirection){
 					}
 				}
 			}
-			else if(laserRangeLeft<=0.6&&laserRangeRight>0.6){ //left wall
+			else if(laserRangeLeftAvg<=0.6&&laserRangeRightAvg>0.6){ //left wall
 				smallTurn(-1);
 			}
-			else if(laserRangeLeft>0.6&&laserRangeRight<=0.6){ //right wall
+			else if(laserRangeLeftAvg>0.6&&laserRangeRightAvg<=0.6){ //right wall
 				smallTurn(1);
 			}
 		}
@@ -398,7 +488,7 @@ void step3(){ //turn left at intersections
 }
 
 int main(int argc, char **argv)
-{
+{	
 	ros::init(argc, argv, "image_listener");   //init a node called image_listener
 	ros::NodeHandle nh; //
 	teleController eStop;
@@ -427,9 +517,9 @@ int main(int argc, char **argv)
 	start  = std::chrono::system_clock::now(); //start timer
 	uint64_t secondsElapsed = 0; //the timer just started, we know less than 480, no neded to change
 
+
 	while(ros::ok() && secondsElapsed <=480 ){
 	//	ROS_INFO("Position: (%f, %f) Orientation: %f laseRange: %f .", posX, posY, yaw*180/pi, laserRange); // print pos and orientation for testing
-
 		ros::spinOnce();  // invoke all callback funcs and publish msgs
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
