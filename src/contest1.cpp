@@ -50,6 +50,9 @@ double leftMost;
 double rightMost;
 double angleMax;
 
+///setup
+
+//fucntions
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
 
 	if (msg.bumper == 0)
@@ -146,11 +149,10 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	}
 
 
-	for (int i= 264; i<= 374; i++) {
-		if (laserFront > ranges[i]) {
-			laserFront = ranges[i];
-		}
+	for (int i= 315; i< 325; i++) {
+		double laserFrontTotal += range[i];
 	}
+	laserFront = laserFrontTotal/10;
 
 	/*if (laserIndex <= 374 && laserIndex >= 264 && laserRange != 0) {
 		laserFront = laserRange;
@@ -212,7 +214,7 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (abs(yaw-yawInitial) < abs(angle)) {
+	while (abs(yaw-yawInitial) <= abs(angle)) {
 
 		angular = sgn(angle)*pi/6;
 		linear = 0;
@@ -225,6 +227,9 @@ void turn(double angle) {
 	}
 	angular = 0;
 	linear = 0;
+	for(int i=0;i<=2000;i++){
+
+	}
 
 }
 
@@ -240,16 +245,17 @@ void smallTurn(int turnDirection){
 
 void turn_or_straight (int turnDirection){
 	// determine if the turtlebot need to do small turn, big turn or straight 
-	if(laserRange > 0.7){
+	if(laserRange > 0.6){
 		straight();
 	}
-	else if(laserRange<=0.7){
-		if(laserFront<=0.7 && laserFront!=0){ //front wall
+	else if(laserRange<=0.6){
+		if(laserFront<=0.6 && laserFront!=0){ //front wall
+			cout<<"wallllllll \n";
 			turn(sgn(turnDirection)*0.5*pi);
 			bigturn_counter++;
 		}
-		else if(laserFront>0.7){ //front clear
-			if(laserRangeLeft<=0.7&&laserRangeRight<=0.7){ //both wall
+		else if(laserFront>0.6){ //front clear
+			if(laserRangeLeft<=0.6&&laserRangeRight<=0.6){ //both wall
 				if(abs(laserRangeLeft-laserRangeRight)<=0.1){ //difference within tolorence
 					straight();
 				}
@@ -262,10 +268,10 @@ void turn_or_straight (int turnDirection){
 					}
 				}
 			}
-			else if(laserRangeLeft<=0.7&&laserRangeRight>0.7){ //left wall
+			else if(laserRangeLeft<=0.6&&laserRangeRight>0.6){ //left wall
 				smallTurn(-1);
 			}
-			else if(laserRangeLeft>0.7&&laserRangeRight<=0.7){ //right wall
+			else if(laserRangeLeft>0.6&&laserRangeRight<=0.6){ //right wall
 				smallTurn(1);
 			}
 		}
@@ -273,9 +279,14 @@ void turn_or_straight (int turnDirection){
 }
 
 void step2(){ //turn right at intersections
+	cout<<"step 2 \n";
 
 	ros::NodeHandle nh;
 	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
+
+	std::chrono::time_point<std::chrono::system_clock> start1;
+	start1  = std::chrono::system_clock::now(); //start timer
+	uint64_t secondsElapsed1 = 0; 
 	
  	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
 	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
@@ -287,11 +298,13 @@ void step2(){ //turn right at intersections
 	double oldRight = rightMost; //initialize oldRight
 	double newRight;
 
-	for(;bigturn_counter<=12;) {
+	for(;secondsElapsed1<60;) {
 
 		newRight= rightMost;
+		cout<<rightMost;
+		cout<<"\n";
 
-		if(newRight-oldRight<0.3){ //no intersection
+		if(newRight-oldRight<0.4){ //no intersection
 			turn_or_straight(-1);
 
 			vel.angular.z = angular; 
@@ -299,17 +312,14 @@ void step2(){ //turn right at intersections
 			vel_pub.publish(vel);
 			
 		}
-		else if(newRight-oldRight>=0.3){ //intersection
-			cout<<"detected";
-			cout<<"\n";
+		else if(newRight-oldRight>=0.4){ //intersection
 			double currentX=posX;
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldRight+0.2)*cos(angleMax)){
-				cout<<currentX;
-				cout<<"\t";
-				cout<<posX;
-				cout<<"\n";
 				straight(); 
+				if(laserFront<=0.6){
+					break;
+				}
 				
 				vel.angular.z = angular; 
 				vel.linear.x = linear;
@@ -324,6 +334,7 @@ void step2(){ //turn right at intersections
 
 		oldRight=newRight;
 		ros::spinOnce();
+		secondsElapsed1 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start1).count();
 	}
 }
 
@@ -331,6 +342,10 @@ void step3(){ //turn left at intersections
 
 	ros::NodeHandle nh;
 	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
+
+	std::chrono::time_point<std::chrono::system_clock> start2;
+	start2  = std::chrono::system_clock::now(); //start timer
+	uint64_t secondsElapsed2 = 0; 
 	
  	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
 	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
@@ -342,11 +357,13 @@ void step3(){ //turn left at intersections
 	double oldLeft = leftMost; //initialize oldRight
 	double newLeft;
 
-	for(;bigturn_counter<=24;) {
+	for(;secondsElapsed2<60;) {
 
 		newLeft= leftMost;
+		cout<<leftMost;
+		cout<<"\n";
 
-		if(newLeft-oldLeft<0.3){ //no intersection
+		if(newLeft-oldLeft<0.4){ //no intersection
 			turn_or_straight(1);
 
 			vel.angular.z = angular; 
@@ -354,17 +371,14 @@ void step3(){ //turn left at intersections
 			vel_pub.publish(vel);
 			
 		}
-		else if(newLeft-oldLeft>=0.3){ //intersection
-			cout<<"detected";
-			cout<<"\n";
+		else if(newLeft-oldLeft>=0.4){ //intersection
 			double currentX=posX;
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldLeft+0.2)*cos(angleMax)){
-				cout<<currentX;
-				cout<<"\t";
-				cout<<posX;
-				cout<<"\n";
 				straight(); 
+				if(laserFront<=0.6){
+					break;
+				}
 				
 				vel.angular.z = angular; 
 				vel.linear.x = linear;
@@ -379,6 +393,7 @@ void step3(){ //turn left at intersections
 
 		oldLeft=newLeft;
 		ros::spinOnce();
+		secondsElapsed2 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start2).count();
 	}
 }
 
@@ -421,23 +436,25 @@ int main(int argc, char **argv)
 
 		left_or_right(); // determine if there is anything on the side;
 		
-		if (bigturn_counter <= 6){  // step 1
+		if (secondsElapsed<120){  // step 1
 			turn_or_straight (-1); // right turn if face a wall
 		}
-		
-		else if (bigturn_counter>6 && bigturn_counter<=12){
+		else if (secondsElapsed>=120 && secondsElapsed<180){
 			step2(); //right turn at intersection
 		}
-		else if (bigturn_counter> 12 &&bigturn_counter<=18){
-			turn_or_straight (1); // left turn if face a wall
-		}
-		else if (bigturn_counter> 18 &&bigturn_counter<=24){
+		else if (secondsElapsed>=180 && secondsElapsed<240){
 			step3(); // left turn at intersection
 		}
-		else if (bigturn_counter>24){
-			cout<<"Done";
+		else if (secondsElapsed>=240 && secondsElapsed<300){
+			step2(); //right turn at intersection
 		}
-
+		else if (secondsElapsed>=300 &&secondsElapsed<420){
+			turn_or_straight (1); // left turn if face a wall
+		}
+		else if (secondsElapsed>=420 && secondsElapsed<480){
+			step2(); //right turn at intersection
+		}
+		
 
   		vel.angular.z = angular; 
   		vel.linear.x = linear;
