@@ -219,7 +219,7 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (abs(yaw-yawInitial) <= abs(angle*0.9)) {
+	while (abs(yaw-yawInitial) <= abs(angle*0.95)) {
 
 		angular = sgn(angle)*pi/6;
 		linear = 0;
