@@ -37,9 +37,7 @@ bool leftTurn, rightTurn;
 
 double laserRangeLeft;
 double laserRangeRight;
-bool step1 = 1;// if step 1 is 1, run step 1; if step 1 is 0, run step 2
-//double slam_map [][];
-//double raw_map [][];
+
 int bigturn_counter = 0;
 // callback functions defined below
 // each func receive a msg param with a specific variable type
@@ -50,7 +48,7 @@ double leftMost;
 double rightMost;
 double angleMax;
 
-double laserFrontAvg, laserRangeAvg, laserRangeLeftAvg, laserRangeRightAvg;
+double laserFrontAvg, laserRangeAvg, laserRangeLeftAvg, laserRangeRightAvg, leftMostAvg, rightMostAvg;
 ///setup
 
 //fucntions
@@ -144,13 +142,6 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		laserRange = 0;
 	}
 
-	/*if (laserIndex - laserSize/2 - laserOffset != laserIndex-laserSize/2 + laserOffset){
-		if (laserIndex - laserSize/2 - laserOffset > laserIndex-laserSize/2 + laserOffset)
-			leftTurn = !leftTurn;
-		else
-			rightTurn = !rightTurn;	
-	}*/
-
 	double laserFrontTotal = 0;
 
 	for (int i= 315; i< 325; i++) {
@@ -158,10 +149,6 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	}
 	
 	laserFront = laserFrontTotal/10;
-
-	/*if (laserIndex <= 374 && laserIndex >= 264 && laserRange != 0) {
-		laserFront = laserRange;
-	}*/
 
 	//step 2, step 3
 	leftMost = ranges[638];
@@ -219,7 +206,7 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (abs(yaw-yawInitial) <= abs(angle*0.95)) {
+	while (abs(yaw-yawInitial) <= abs(angle*0.85)) {
 
 		angular = sgn(angle)*pi/6;
 		linear = 0;
@@ -246,7 +233,7 @@ void smallTurn(int turnDirection){
 
 void readLaser() {
 
-	double front[10], range[10], rangeLeft[10], rangeRight[10];
+	double front[10], range[10], rangeLeft[10], rangeRight[10], mostRight[10], mostLeft[10];
 	int counter=0;
 
 	ros::NodeHandle nh;
@@ -263,16 +250,18 @@ void readLaser() {
 		range[i] = laserRange;
 		rangeLeft[i] = laserRangeLeft;
 		rangeRight[i] = laserRangeRight;
-		straight();
+		mostRight[i] = rightMost;
+		mostLeft[i] = leftMost;
+	/*	straight();                                                        //not needed
 
 		vel.angular.z = angular; 
 		vel.linear.x = linear;
-		vel_pub.publish(vel);
+		vel_pub.publish(vel);*/
 	}
 
  // read laserFront 
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){
+		for (int k=1; k<10;k++){                                         //k<10-j
 			if (abs(front[j] - front[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -328,6 +317,34 @@ void readLaser() {
 		counter =0;
 	}
 
+	// read leftMost
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){                                         //k<10-j
+			if (abs(mostLeft[j] - mostLeft[j+k]) <= 0.01) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			leftMostAvg = mostLeft[j];
+			break;
+		}
+		counter =0;
+	}
+
+	// read rightMost
+	for (int j=0; j<10; j++) {
+		for (int k=1; k<10;k++){                                         //k<10-j
+			if (abs(mostRight[j] - mostRight[j+k]) <= 0.01) {
+				counter ++;
+			}
+		}
+		if (counter >5) {
+			rightMostAvg = mostRight[j];
+			break;
+		}
+		counter =0;
+	}
+
 }
 
 void turn_or_straight (int turnDirection){
@@ -340,7 +357,6 @@ void turn_or_straight (int turnDirection){
 	else if(laserRangeAvg<=0.6){
 		
 		if(laserFrontAvg<=0.6){ //front wall
-			cout<<"wallllllll \n";
 			turn(sgn(turnDirection)*0.5*pi);
 			bigturn_counter++;
 		}
@@ -369,7 +385,6 @@ void turn_or_straight (int turnDirection){
 }
 
 void step2(){ //turn right at intersections
-	cout<<"step 2 \n";
 
 	ros::NodeHandle nh;
 	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
@@ -383,16 +398,15 @@ void step2(){ //turn right at intersections
 
 	geometry_msgs::Twist vel;
 
-	ros::spinOnce();
+	readLaser();
+	cout<<"Step 2 \n";
 	
-	double oldRight = rightMost; //initialize oldRight
+	double oldRight = rightMostAvg; //initialize oldRight
 	double newRight;
 
 	for(;secondsElapsed1<60;) {
 
-		newRight= rightMost;
-		cout<<rightMost;
-		cout<<"\n";
+		newRight= rightMostAvg;
 
 		if(newRight-oldRight<0.4){ //no intersection
 			turn_or_straight(-1);
@@ -407,7 +421,7 @@ void step2(){ //turn right at intersections
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldRight+0.2)*cos(angleMax)){
 				straight(); 
-				if(laserFront<=0.6){
+				if(laserFrontAvg<=0.6){
 					break;
 				}
 				
@@ -415,15 +429,16 @@ void step2(){ //turn right at intersections
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 				
-				ros::spinOnce();
+				readLaser();
 			}
 			turn(-0.5*pi);
 			bigturn_counter++;
-			newRight=rightMost;
+			readLaser();
+			newRight=rightMostAvg;
 		}
 
 		oldRight=newRight;
-		ros::spinOnce();
+		readLaser();
 		secondsElapsed1 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start1).count();
 	}
 }
@@ -442,16 +457,15 @@ void step3(){ //turn left at intersections
 
 	geometry_msgs::Twist vel;
 
-	ros::spinOnce();
+	readLaser();
+	cout<<"Step 3 \n";
 	
-	double oldLeft = leftMost; //initialize oldRight
+	double oldLeft = leftMostAvg; //initialize oldRight
 	double newLeft;
 
 	for(;secondsElapsed2<60;) {
 
-		newLeft= leftMost;
-		cout<<leftMost;
-		cout<<"\n";
+		newLeft= leftMostAvg;
 
 		if(newLeft-oldLeft<0.4){ //no intersection
 			turn_or_straight(1);
@@ -466,7 +480,7 @@ void step3(){ //turn left at intersections
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldLeft+0.2)*cos(angleMax)){
 				straight(); 
-				if(laserFront<=0.6){
+				if(laserFrontAvg<=0.6){
 					break;
 				}
 				
@@ -474,15 +488,16 @@ void step3(){ //turn left at intersections
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 				
-				ros::spinOnce();
+				readLaser();
 			}
 			turn(0.5*pi);
 			bigturn_counter++;
-			newLeft=leftMost;
+			readLaser();
+			newLeft=leftMostAvg;
 		}
 
 		oldLeft=newLeft;
-		ros::spinOnce();
+		readLaser();
 		secondsElapsed2 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start2).count();
 	}
 }
