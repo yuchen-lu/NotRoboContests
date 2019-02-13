@@ -15,8 +15,6 @@
 #include <iostream>
 #include <chrono>
 
-
-
 using namespace std;
 
 // global variables declarations
@@ -80,15 +78,13 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 
 	float ranges[639];
 	int j=0;
-	int isNan=1;
-	float k;
 
 	for(int i=0;i<324;i++){
 		j=0;
 		do{
 			ranges[i]=msg->ranges[i+j];
 			j++;
-		}while(isnan(ranges[i]));
+		}while(isnan(ranges[i])||ranges[i]<0.1);
 	}
 
 	for(int i=638;i>=324;i--){
@@ -96,9 +92,8 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		do{
 			ranges[i]=msg->ranges[i-j];
 			j--;
-		}while(isnan(ranges[i]));
-	} 	
-
+		}while(isnan(ranges[i])||ranges[i]<0.1);
+	} 
 
 	laserRange = 11;
 	laserFront = 11; 
@@ -206,7 +201,7 @@ void turn(double angle) {
 		yawGoal = yawGoal + pi*2;
 	}
 	
-	while (abs(yaw-yawInitial) <= abs(angle*0.85)) {
+	while (abs(yaw-yawInitial) <= abs(angle*0.9)) {
 
 		angular = sgn(angle)*pi/6;
 		linear = 0;
@@ -261,7 +256,7 @@ void readLaser() {
 
  // read laserFront 
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                         //k<10-j
 			if (abs(front[j] - front[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -276,7 +271,7 @@ void readLaser() {
  // read laserRange 
 
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){
+		for (int k=1; k<10-j;k++){
 			if (abs(range[j] - range[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -290,7 +285,7 @@ void readLaser() {
 
 // read laserRangeLeft
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){
+		for (int k=1; k<10-j;k++){
 			if (abs(rangeLeft[j] - rangeLeft[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -305,7 +300,7 @@ void readLaser() {
 // read laserRangeRight
 
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){
+		for (int k=1; k<10-j;k++){
 			if (abs(rangeRight[j] - rangeRight[j+k]) <= 0.05) {
 				counter ++;
 			}
@@ -319,7 +314,7 @@ void readLaser() {
 
 	// read leftMost
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                         //k<10-j
 			if (abs(mostLeft[j] - mostLeft[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -333,7 +328,7 @@ void readLaser() {
 
 	// read rightMost
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                         //k<10-j
 			if (abs(mostRight[j] - mostRight[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -344,7 +339,6 @@ void readLaser() {
 		}
 		counter =0;
 	}
-
 }
 
 void turn_or_straight (int turnDirection){
@@ -357,8 +351,7 @@ void turn_or_straight (int turnDirection){
 	else if(laserRangeAvg<=0.6){
 		
 		if(laserFrontAvg<=0.6){ //front wall
-			turn(sgn(turnDirection)*0.5*pi);
-			bigturn_counter++;
+			turn(sgn(turnDirection)*0.3*pi);
 		}
 		else if(laserFrontAvg>0.6){ //front clear
 			if(laserRangeLeftAvg<=0.6&&laserRangeRightAvg<=0.6){ //both wall
@@ -409,7 +402,7 @@ void step2(){ //turn right at intersections
 		newRight= rightMostAvg;
 
 		if(newRight-oldRight<0.4){ //no intersection
-			turn_or_straight(-1);
+			turn_or_straight(1);
 
 			vel.angular.z = angular; 
 			vel.linear.x = linear;
@@ -468,7 +461,7 @@ void step3(){ //turn left at intersections
 		newLeft= leftMostAvg;
 
 		if(newLeft-oldLeft<0.4){ //no intersection
-			turn_or_straight(1);
+			turn_or_straight(-1);
 
 			vel.angular.z = angular; 
 			vel.linear.x = linear;
@@ -542,19 +535,19 @@ int main(int argc, char **argv)
 		left_or_right(); // determine if there is anything on the side;
 		
 		if (secondsElapsed<120){  // step 1
-			turn_or_straight (-1); // right turn if face a wall
+			turn_or_straight (1); // right turn if face a wall
 		}
 		else if (secondsElapsed>=120 && secondsElapsed<180){
-			step2(); //right turn at intersection
+			step3(); //right turn at intersection
 		}
 		else if (secondsElapsed>=180 && secondsElapsed<240){
-			step3(); // left turn at intersection
+			step2(); // left turn at intersection
 		}
 		else if (secondsElapsed>=240 && secondsElapsed<300){
-			step2(); //right turn at intersection
+			step3(); //right turn at intersection
 		}
 		else if (secondsElapsed>=300 &&secondsElapsed<420){
-			turn_or_straight (1); // left turn if face a wall
+			turn_or_straight (-1); // left turn if face a wall
 		}
 		else if (secondsElapsed>=420 && secondsElapsed<480){
 			step2(); //right turn at intersection
