@@ -152,14 +152,12 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		
 }
 
-//Odom Tutorial: http://wiki.ros.org/navigation/Tutorials/RobotSetup/Odom
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 	posX = msg->pose.pose.position.x;
 	posY = msg->pose.pose.position.y; 
 	yaw = tf::getYaw(msg->pose.pose.orientation);  // convert queration to euler angles
 
-	//ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, yaw*180/pi); // print pos and orientation for testing
 }
 
 void left_or_right() {
@@ -180,7 +178,7 @@ int sgn(double v) {
 	return 0;
 }
 
-void turn(double angle) {
+void turn(double angle) { // turn turtlebot by a certain angle
 
 	ros::NodeHandle nh;
 	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
@@ -193,7 +191,7 @@ void turn(double angle) {
 	ros::spinOnce();
 	double yawInitial = yaw;
 	double yawGoal = yaw + angle;
-	//double yawOld = yaw;
+
 	if (yawGoal > pi) {
 		yawGoal = yawGoal - pi*2;
 	}
@@ -217,8 +215,14 @@ void turn(double angle) {
 }
 
 void straight () {
-	angular = 0;
-	linear = 0.2;
+
+	if (laserFrontAvg >= 1) {
+		angular = 0;
+		linear = 0.2;
+	} else {
+		angular = 0;
+		linear = 0.1;
+	}
 }
 
 void smallTurn(int turnDirection){
@@ -226,18 +230,10 @@ void smallTurn(int turnDirection){
 	linear=0.0;
 }
 
-void readLaser() {
+void readLaser() { // read 10 laser readings in a row to filter out error
 
 	double front[10], range[10], rangeLeft[10], rangeRight[10], mostRight[10], mostLeft[10];
 	int counter=0;
-
-	ros::NodeHandle nh;
-	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
-	
- 	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
-	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
-
-	geometry_msgs::Twist vel;
 
 	for (int i=0; i<10; i++) {
 		ros::spinOnce();
@@ -247,16 +243,11 @@ void readLaser() {
 		rangeRight[i] = laserRangeRight;
 		mostRight[i] = rightMost;
 		mostLeft[i] = leftMost;
-	/*	straight();                                                        //not needed
-
-		vel.angular.z = angular; 
-		vel.linear.x = linear;
-		vel_pub.publish(vel);*/
 	}
 
  // read laserFront 
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10-j;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                        
 			if (abs(front[j] - front[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -314,7 +305,7 @@ void readLaser() {
 
 	// read leftMost
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10-j;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                       
 			if (abs(mostLeft[j] - mostLeft[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -328,7 +319,7 @@ void readLaser() {
 
 	// read rightMost
 	for (int j=0; j<10; j++) {
-		for (int k=1; k<10-j;k++){                                         //k<10-j
+		for (int k=1; k<10-j;k++){                                    
 			if (abs(mostRight[j] - mostRight[j+k]) <= 0.01) {
 				counter ++;
 			}
@@ -341,21 +332,57 @@ void readLaser() {
 	}
 }
 
+void bumper() { // backup if hit bumper
+	ros::NodeHandle nh;
+	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
+	
+ 	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
+	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
+
+	geometry_msgs::Twist vel;
+
+
+	if (bumperCenter) {
+		readLaser();
+		double currentX=posX;
+		double currentY=posY;
+
+		while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < 0.5){ // backup 0.5m
+			
+			angular = 0;
+			linear = -0.1;
+
+			vel.angular.z = angular; 
+			vel.linear.x = linear;
+			vel_pub.publish(vel);
+		
+			readLaser();
+		}
+	}
+
+	bumperCenter = 0;
+	angular = 0;
+	linear = 0;
+}
+
 void turn_or_straight (int turnDirection){
 
 	readLaser();
 	// determine if the turtlebot need to do small turn, big turn or straight 
+	bumper();
+
 	if(laserRangeAvg > 0.6){
 		straight();
 	}
 	else if(laserRangeAvg<=0.6){
 		
 		if(laserFrontAvg<=0.6){ //front wall
-			turn(sgn(turnDirection)*0.3*pi);
+			turn(sgn(turnDirection)*0.4*pi);
 		}
 		else if(laserFrontAvg>0.6){ //front clear
-			if(laserRangeLeftAvg<=0.6&&laserRangeRightAvg<=0.6){ //both wall
-				if(abs(laserRangeLeftAvg-laserRangeRightAvg)<=0.1){ //difference within tolorence
+
+			if(laserRangeLeftAvg<=0.6&&laserRangeRightAvg<=0.6){ //both wall detected
+				if(abs(laserRangeLeftAvg-laserRangeRightAvg)<=0.1){ //difference within tolorence means small alley
 					straight();
 				}
 				else{
@@ -402,7 +429,7 @@ void step2(){ //turn right at intersections
 		newRight= rightMostAvg;
 
 		if(newRight-oldRight<0.4){ //no intersection
-			turn_or_straight(1);
+			turn_or_straight(-1);
 
 			vel.angular.z = angular; 
 			vel.linear.x = linear;
@@ -461,7 +488,7 @@ void step3(){ //turn left at intersections
 		newLeft= leftMostAvg;
 
 		if(newLeft-oldLeft<0.4){ //no intersection
-			turn_or_straight(-1);
+			turn_or_straight(1);
 
 			vel.angular.z = angular; 
 			vel.linear.x = linear;
@@ -495,6 +522,7 @@ void step3(){ //turn left at intersections
 	}
 }
 
+
 int main(int argc, char **argv)
 {	
 	ros::init(argc, argv, "image_listener");   //init a node called image_listener
@@ -524,10 +552,10 @@ int main(int argc, char **argv)
 	std::chrono::time_point<std::chrono::system_clock> start;
 	start  = std::chrono::system_clock::now(); //start timer
 	uint64_t secondsElapsed = 0; //the timer just started, we know less than 480, no neded to change
-
-
+	
 	while(ros::ok() && secondsElapsed <=480 ){
-	//	ROS_INFO("Position: (%f, %f) Orientation: %f laseRange: %f .", posX, posY, yaw*180/pi, laserRange); // print pos and orientation for testing
+		//ROS_INFO("Position: (%f, %f) Orientation: %f laseRange: %f .", posX, posY, yaw*180/pi, laserRangeAvg); // print pos and orientation for testing
+		
 		ros::spinOnce();  // invoke all callback funcs and publish msgs
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
@@ -535,19 +563,19 @@ int main(int argc, char **argv)
 		left_or_right(); // determine if there is anything on the side;
 		
 		if (secondsElapsed<120){  // step 1
-			turn_or_straight (1); // right turn if face a wall
+			turn_or_straight (1); // left turn if face a wall
 		}
 		else if (secondsElapsed>=120 && secondsElapsed<180){
-			step3(); //right turn at intersection
+			step3(); //left turn at intersection
 		}
 		else if (secondsElapsed>=180 && secondsElapsed<240){
-			step2(); // left turn at intersection
+			step2(); // right turn at intersection
 		}
 		else if (secondsElapsed>=240 && secondsElapsed<300){
-			step3(); //right turn at intersection
+			step3(); //left turn at intersection
 		}
 		else if (secondsElapsed>=300 &&secondsElapsed<420){
-			turn_or_straight (-1); // left turn if face a wall
+			turn_or_straight (-1); // right turn if face a wall
 		}
 		else if (secondsElapsed>=420 && secondsElapsed<480){
 			step2(); //right turn at intersection
