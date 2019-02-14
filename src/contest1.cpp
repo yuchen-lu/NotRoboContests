@@ -440,6 +440,7 @@ void step2(){ //turn right at intersections
 			double currentX=posX;
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldRight+0.2)*cos(angleMax)){
+				bumper();
 				straight(); 
 				if(laserRangeAvg<=0.6){
 					break;
@@ -499,6 +500,7 @@ void step3(){ //turn left at intersections
 			double currentX=posX;
 			double currentY=posY;
 			while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < (oldLeft+0.2)*cos(angleMax)){
+				bumper();
 				straight(); 
 				if(laserRangeAvg<=0.6){
 					break;
