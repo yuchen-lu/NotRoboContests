@@ -1,7 +1,16 @@
 #include <imagePipeline.h>
+#include<iostream>
+#include<stdio.h>
+#include "opencv2/calib3d.hpp"
+#include "opencv2/features2d.hpp"
+#include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+
+using namespace cv;
+using namespace std;
+using namespace cv::xfeatures2d;
 
 ImagePipeline::ImagePipeline(ros::NodeHandle& n) {
     image_transport::ImageTransport it(n);
@@ -34,7 +43,92 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
         std::cout << "img.cols:" << img.cols << std::endl;
     } else {
         /***YOUR CODE HERE***/
-        // Use: boxes.templates
+        // Use: boxes.box
+        
+        // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
+        Mat img_object = imread( "template1.jpg", IMREAD_GRAYSCALE );    //need to change to boxes.templates[i], i=0,1,2, return template_id = i !!!!!!!!!!!!!!!!
+        Mat img_scene = img;
+
+        if( !img_scene.data )  //If camera data is missing
+        { std::cout<< " --(!) Error reading img_scene " << std::endl; return -1; }
+        if( !img_object.data )  //If file template file cannot be loaded
+        { std::cout<< " --(!) Error reading img_object " << std::endl; return -1; }
+
+        //----------------------------------Detect the keypoints and calculate descriptors using SURF Detector---------------------------//
+        int minHessian = 400;
+        Ptr<SURF> detector = SURF::create(minHessian);
+        std::vector<KeyPoint> keypoints_object, keypoints_scene;
+        Mat descriptors_object, descriptors_scene;
+        detector->detectAndCompute(img_object, Mat(), keypoints_object,descriptors_object);
+        detector->detectAndCompute(img_scene, Mat(), keypoints_scene,descriptors_scene);
+
+        //-----------------------------------------Feature matching using FLANN matcher---------------------------------------------------//
+        FlannBasedMatcher matcher;
+        std::vector< DMatch > matches;
+        matcher.match( descriptors_object, descriptors_scene, matches );
+
+        //-------------------Determine quality of matchers: Quick calculation of max and min distanes between keypoints-------------------//
+        double max_dist = 0; double min_dist = 100;
+
+        for(int i = 0; i < descriptors_object.rows; i++){
+            double dist = matches[i].distance;
+            if( dist < min_dist ) min_dist = dist;
+            if( dist > max_dist ) max_dist = dist;
+        }
+
+        //--------------------Outlier Rejection: Draw only "good" matches (i.e. whose distance is less than 3*min_dist )------------------//
+        std::vector< DMatch > good_matches;
+
+        for( int i = 0; i < descriptors_object.rows; i++ ){ 
+            if( matches[i].distance < 3*min_dist ){ 
+                good_matches.push_back( matches[i]); 
+            }
+            
+            if(i>=150){      //If matches >= 150, confirm template matched
+                template_id = 1;
+                std::cout<<"Match template 1 \n"; //Change to template_id = i after testing!!!!!!!!!!!!!!!!!!!!!!
+            }
+            else{
+                std::cout<<"Does not match template 1 \n";
+            }
+        }
+                                                        //code onward is not necessary for matchmaking
+        Mat img_matches;
+        drawMatches( img_object, keypoints_object, img_scene, keypoints_scene,good_matches, img_matches, 
+        Scalar::all(-1), Scalar::all(-1),std:: vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+
+        //--------------------------------------------Getting corresponding matched keypoints-----------------------------------------------//
+             //Localize the object
+        std::vector<Point2f> obj;
+        std::vector<Point2f> scene;
+
+        for( int i = 0; i < good_matches.size(); i++ )
+        {
+            //-- Get the keypoints from the good matches
+            obj.push_back( keypoints_object[ good_matches[i].queryIdx ].pt );
+            scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
+        }
+
+        //----------------------------------------------------object/Scene Transformation----------------------------------------------------//
+        Mat H = findHomography( obj, scene, RANSAC );
+
+            //-- Get the corners from the image_1 ( the object to be "detected" )
+        std::vector<Point2f> obj_corners(4);
+        obj_corners[0] = cvPoint(0,0); obj_corners[1] = cvPoint( img_object.cols, 0 );
+        obj_corners[2] = cvPoint( img_object.cols, img_object.rows ); obj_corners[3] = cvPoint( 0, img_object.rows );
+        std::vector<Point2f> scene_corners(4);
+        perspectiveTransform( obj_corners, scene_corners, H);
+
+        //------------------------------------Print the bounded object in the scene (draw lines)---------------------------------------------//
+        line( img_matches, scene_corners[0] + Point2f( img_object.cols, 0),
+        scene_corners[1] + Point2f( img_object.cols, 0), Scalar(0, 255, 0), 4 );
+        line( img_matches, scene_corners[1] + Point2f( img_object.cols, 0),
+        scene_corners[2] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
+        line( img_matches, scene_corners[2] + Point2f( img_object.cols, 0),
+        scene_corners[3] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
+        line( img_matches, scene_corners[3] + Point2f( img_object.cols, 0),
+        scene_corners[0] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
+
         cv::imshow("view", img);
         cv::waitKey(10);
     }  
