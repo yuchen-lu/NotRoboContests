@@ -122,7 +122,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                   scene_corners[3] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
             line( img_matches, scene_corners[3] + Point2f( img_object.cols, 0),
                   scene_corners[0] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
-            std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
+           // std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
 
             // check best match??
             double Top,Right,Bottom,Left,leftDif,topDif,rightDif,bottomDif;
@@ -144,7 +144,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                 }   
             }
             else{
-                std::cout<<"Does not match template "<<tempNumber<<"\n";
+              //  std::cout<<"Does not match template "<<tempNumber<<"\n";
             }
             
             cv::imshow("good match & object detection", img_matches);
