@@ -6,7 +6,7 @@
 #include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -49,9 +49,6 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             Mat img_object = boxes.templates[tempNumber];    //need to change to boxes.templates[i], i=0,1,2, return template_id = i !!!!!!!!!!!!!!!!
             Mat img_scene = img;
 
-//            imshow("image scene", img_scene);
-//            cv::waitKey(100000);
-
             if( !img_scene.data )  //If camera data is missing
             { std::cout<< " --(!) Error reading img_scene " << std::endl; return -1; }
             if( !img_object.data )  //If file template file cannot be loaded
@@ -88,8 +85,6 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                 }
             }
 
-
-
             //code onward is not necessary for matchmaking
             Mat img_matches;
             drawMatches( img_object, keypoints_object, img_scene, keypoints_scene,good_matches, img_matches,
@@ -102,7 +97,6 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
 
             for( int i = 0; i < good_matches.size(); i++ )
             {
-                //-- Get the keypoints from the good matches
                 obj.push_back( keypoints_object[ good_matches[i].queryIdx ].pt );
                 scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
             }
@@ -112,8 +106,10 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
 
             //-- Get the corners from the image_1 ( the object to be "detected" )
             std::vector<Point2f> obj_corners(4);
-            obj_corners[0] = cvPoint(0,0); obj_corners[1] = cvPoint( img_object.cols, 0 );
-            obj_corners[2] = cvPoint( img_object.cols, img_object.rows ); obj_corners[3] = cvPoint( 0, img_object.rows );
+            obj_corners[0] = cvPoint(0,0); 
+            obj_corners[1] = cvPoint( img_object.cols, 0 );
+            obj_corners[2] = cvPoint( img_object.cols, img_object.rows ); 
+            obj_corners[3] = cvPoint( 0, img_object.rows );
             std::vector<Point2f> scene_corners(4);
             perspectiveTransform( obj_corners, scene_corners, H);
 
@@ -126,21 +122,25 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                   scene_corners[3] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
             line( img_matches, scene_corners[3] + Point2f( img_object.cols, 0),
                   scene_corners[0] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
-
-
+            std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
 
             // check best match??
-            int good_match_number = good_matches.size();
-            if(good_match_number>=50){      //If matches >= 150, confirm template matched
+            double Top,Right,Bottom,Left;
+            Left=abs(scene_corners[0].x-scene_corners[1].x);
+            Top=abs(scene_corners[1].y-scene_corners[2].y);
+            Right=abs(scene_corners[2].x-scene_corners[3].x);
+            Bottom=abs(scene_corners[3].y-scene_corners[0].y);
+
+            if(Left>100 && Top>100 && Right>100 && Bottom>100){      //If match
                 template_id = tempNumber;
             }
             else{
                 std::cout<<"Does not match any template \n";
             }
-            std::cout<<"good_match_number is : "<<good_match_number;
+            
             cv::imshow("good match & object detection", img_matches);
             cv::imshow("view", img);
-            cv::waitKey(100);
+            cv::waitKey(1000);
         }
     }
     return template_id;
