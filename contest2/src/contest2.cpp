@@ -101,6 +101,8 @@ int main(int argc, char** argv) {
             std::cout << "\n";
 
             Navigation::moveToGoal(goalX, goalY, goalZ);
+
+            ros::spinOnce();
             usleep(1000);
 
             do {
@@ -127,7 +129,7 @@ int main(int argc, char** argv) {
                 goalY = BoxCoord[target][1]+0.6*sin(BoxCoord[target][2]);
                 goalZ = BoxCoord[target][2];
                 Navigation::moveToGoal(goalX, goalY, goalZ);
-
+                ros::spinOnce();
                 // read image again
 
                 Match1 = imagePipeline.getTemplateID(boxes);
