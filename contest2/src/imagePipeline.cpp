@@ -6,7 +6,7 @@
 #include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -125,14 +125,23 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
 
             // check best match??
-            double Top,Right,Bottom,Left;
-            Left=abs(scene_corners[0].x-scene_corners[1].x);
+            double Top,Right,Bottom,Left,leftDif,topDif,rightDif,bottomDif;
+
+            Left=abs(scene_corners[0].x-scene_corners[1].x);  //Calculate side length
             Top=abs(scene_corners[1].y-scene_corners[2].y);
             Right=abs(scene_corners[2].x-scene_corners[3].x);
             Bottom=abs(scene_corners[3].y-scene_corners[0].y);
 
-            if(Left>100 && Top>100 && Right>100 && Bottom>100){      //If match
-                template_id = tempNumber;
+            leftDif=abs(scene_corners[0].y-scene_corners[1].y);
+            topDif=abs(scene_corners[1].x-scene_corners[2].x);
+            rightDif=abs(scene_corners[2].y-scene_corners[3].y);
+            bottomDif=abs(scene_corners[3].x-scene_corners[0].x);
+
+
+            if(Left>30 && Top>30 && Right>30 && Bottom>30){ 
+                if(leftDif<20 && topDif<20 && rightDif<20 && bottomDif<20){
+                    template_id = tempNumber;
+                }   
             }
             else{
                 std::cout<<"Does not match any template \n";
