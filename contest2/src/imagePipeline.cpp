@@ -6,7 +6,7 @@
 #include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -144,7 +144,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                 }   
             }
             else{
-                std::cout<<"Does not match any template \n";
+                std::cout<<"Does not match template "<<tempNumber<<"\n";
             }
             
             cv::imshow("good match & object detection", img_matches);
