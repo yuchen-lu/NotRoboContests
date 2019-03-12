@@ -4,13 +4,18 @@
 #include <imagePipeline.h>
 
 float BoxCoord[5][3];
+double pi = 3.14;
+int FootPrint[5] = {0, 0, 0, 0, 0};
+float d[5];
 
 int FindTarget(float x, float y) {
-    
-    float d[5];
 
     for(int i = 0; i < 5; i++) {
-        d[i] = sqrt((x - BoxCoord[i][0]) * (x - BoxCoord[i][0])  + (y - BoxCoord[i][1]) * (y - BoxCoord[i][1]));
+        if (FootPrint[i]==0) {
+            d[i] = sqrt((x - BoxCoord[i][0]) * (x - BoxCoord[i][0])  + (y - BoxCoord[i][1]) * (y - BoxCoord[i][1]));
+        } else {
+            d[i] = 100;
+        }
     }
 
     int min = 0;
@@ -57,24 +62,35 @@ int main(int argc, char** argv) {
     while(ros::ok()) {
         ros::spinOnce();
 
-        do {
-            float posX = robotPose.x;
-            float posY = robotPose.y;
+        float posX = robotPose.x;
+        float posY = robotPose.y;
 
-            std::cout << posX;
-            std::cout << "\n";
-            std::cout << posY;
-            std::cout << "\n";
-            std::cout << "\n";
+        std::cout << posX;
+        std::cout << "\n";
+        std::cout << posY;
+        std::cout << "\n";
+        std::cout << "\n";
 
-            int target = FindTarget(posX, posY);
+        int target = FindTarget(posX, posY);
+        FootPrint[target] = 1;
 
-            std::cout << target;
-            std::cout << "\n";
-            std::cout << "\n";
+        std::cout << target;
+        std::cout << "\n";
+        std::cout << d[target];
+        std::cout << "\n";
+        std::cout << "\n";
 
-            double goalX = BoxCoord[target][0]+0.6*cos(BoxCoord[target][2]);
-            double goalY = BoxCoord[target][1]+0.6*sin(BoxCoord[target][2]);
+        if (d[target] != 10) {
+
+            double goalX = BoxCoord[target][0]+0.5*cos(BoxCoord[target][2]);
+            double goalY = BoxCoord[target][1]+0.5*sin(BoxCoord[target][2]);
+            double goalZ = BoxCoord[target][2];
+
+            if (goalZ >= 0) {
+                goalZ -= pi;
+            } else {
+                goalZ += pi;
+            }
 
             std::cout << goalX;
             std::cout << "\n";
@@ -82,9 +98,8 @@ int main(int argc, char** argv) {
             std::cout << "\n";
             std::cout << "\n";
 
-            Navigation::moveToGoal(goalX, goalY,  BoxCoord[target][2]);
+            Navigation::moveToGoal(goalX, goalY, goalZ);
         }
-        while (false);
 
         //imagePipeline.getTemplateID(boxes);
         ros::Duration(0.01).sleep();
