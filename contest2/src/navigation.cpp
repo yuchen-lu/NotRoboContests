@@ -23,6 +23,8 @@ bool Navigation::moveToGoal(float xGoal, float yGoal, float phiGoal){
     goal.target_pose.pose.orientation.w = phi.w;
     ROS_INFO("Sending goal location ...");
 	// Send goal and wait for response.
+    
+
     ac.sendGoal(goal);
     ac.waitForResult();
     if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED){
