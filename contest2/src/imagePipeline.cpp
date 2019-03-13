@@ -6,7 +6,7 @@
 #include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -34,6 +34,7 @@ void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
 int ImagePipeline::getTemplateID(Boxes& boxes) {
     int template_id = -1;
+
     if(!isValid) {
         std::cout << "ERROR: INVALID IMAGE!" << std::endl;
     } else if(img.empty() || img.rows <= 0 || img.cols <= 0) {
@@ -46,7 +47,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
         // Use: boxes.box
         for(int tempNumber=0;tempNumber<=2;tempNumber++){
             // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
-            Mat img_object = boxes.templates[tempNumber];    //need to change to boxes.templates[i], i=0,1,2, return template_id = i !!!!!!!!!!!!!!!!
+            Mat img_object = boxes.templates[tempNumber];    
             Mat img_scene = img;
 
             if( !img_scene.data )  //If camera data is missing
@@ -81,11 +82,15 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
 
             for( int i = 0; i < descriptors_object.rows; i++ ){
                 if( matches[i].distance < 4*min_dist ){
-                    good_matches.push_back( matches[i]);
+                    good_matches.push_back(matches[i]);
                 }
             }
-
-            //code onward is not necessary for matchmaking
+            
+            if(good_matches.size()<4){            //return -2 if core dumped. Move robot and re-run imagepipeline
+                std::cout<<"error: core dumped(good match)                    ";
+                return -2;
+            }
+           
             Mat img_matches;
             drawMatches( img_object, keypoints_object, img_scene, keypoints_scene,good_matches, img_matches,
                          Scalar::all(-1), Scalar::all(-1),std:: vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
@@ -101,10 +106,14 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                 scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
             }
 
-            //----------------------------------------------------object/Scene Transformation----------------------------------------------------//
+            //----------------------------------------------------Object/Scene Transformation----------------------------------------------------//
             Mat H = findHomography( obj, scene, RANSAC );
+            if(H.rows<3 || H.cols<3){           //return -2 if core dumped
+                std::cout<<"error: core dumped(H)                     ";
+                return -2;
+            }
 
-            //-- Get the corners from the image_1 ( the object to be "detected" )
+            //Get the corners from the image_1 ( the object to be "detected" )
             std::vector<Point2f> obj_corners(4);
             obj_corners[0] = cvPoint(0,0); 
             obj_corners[1] = cvPoint( img_object.cols, 0 );
@@ -124,7 +133,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                   scene_corners[0] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
            // std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
 
-            // check best match??
+            //-----------------------------------------------------check best match-------------------------------------------------------------//
             double Top,Right,Bottom,Left,leftDif,topDif,rightDif,bottomDif;
 
             Left=abs(scene_corners[0].x-scene_corners[1].x);  //Calculate side length
@@ -139,17 +148,20 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
 
 
             if(Left>30 && Top>30 && Right>30 && Bottom>30){ 
-                if(leftDif<20 && topDif<20 && rightDif<20 && bottomDif<20){
+                if(leftDif<80 && topDif<80 && rightDif<80 && bottomDif<80){
                     template_id = tempNumber;
                 }   
+                else{
+                   // std::cout<<"diff too large \n";
+                }
             }
             else{
-              //  std::cout<<"Does not match template "<<tempNumber<<"\n";
+             // std::cout<<"side too short \n";
             }
             
             cv::imshow("good match & object detection", img_matches);
             cv::imshow("view", img);
-            cv::waitKey(1000);
+            cv::waitKey(200);
         }
     }
     return template_id;
