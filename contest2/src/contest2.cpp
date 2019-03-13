@@ -25,7 +25,7 @@ int FindTarget(float x, float y) {
             min = k;
         }
     }
-
+0
     return min;
 }
 
@@ -105,11 +105,11 @@ int main(int argc, char** argv) {
             ros::spinOnce();
             usleep(1000);
 
-            do {
+            do {  //add neg2 counter, if > 5, move robot a bit. Prevent stucking in the loop.
 
             } while (imagePipeline.getTemplateID(boxes) == -2);
 
-            int Match1 = imagePipeline.getTemplateID(boxes);
+            int Match1 = imagePipeline.getTemplateID(boxes);  //move robot for each match
             int Match2 = imagePipeline.getTemplateID(boxes);
             int Match3 = imagePipeline.getTemplateID(boxes);
 
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
                     std::cout << "\n";
                 }
             }
-            else {
+            else {  
                 // back up a bit 
                 goalX = BoxCoord[target][0]+0.6*cos(BoxCoord[target][2]);
                 goalY = BoxCoord[target][1]+0.6*sin(BoxCoord[target][2]);
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
                 ros::spinOnce();
                 // read image again
 
-                Match1 = imagePipeline.getTemplateID(boxes);
+                Match1 = imagePipeline.getTemplateID(boxes);  //also need to change to move robot for each match, or use do while
                 Match2 = imagePipeline.getTemplateID(boxes);
                 Match3 = imagePipeline.getTemplateID(boxes);
 
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
                         std::cout << "\n";
                     }
                 } else {
-                    std::cout << "ERROR";
+                    std::cout << "ERROR";  //navigate robot to the next position and come back to this location later
                     std::cout << "\n";
                 }
             }
