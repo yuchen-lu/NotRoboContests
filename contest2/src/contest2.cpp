@@ -25,7 +25,7 @@ int FindTarget(float x, float y) {
             min = k;
         }
     }
-0
+
     return min;
 }
 
@@ -61,28 +61,35 @@ int main(int argc, char** argv) {
  
     Navigation navigation;
 
+    int counter = 0;
+
     while(ros::ok()) {
         ros::spinOnce();
+
+        float InitialPosX;
+        float InitialPosY;
+        float InitialPosZ;
 
         float posX = robotPose.x;
         float posY = robotPose.y;
 
-        std::cout << posX;
-        std::cout << "\n";
-        std::cout << posY;
-        std::cout << "\n";
-        std::cout << "\n";
-
         int target = FindTarget(posX, posY);
         FootPrint[target] = 1;
 
-        std::cout << target;
-        std::cout << "\n";
-        std::cout << d[target];
-        std::cout << "\n";
-        std::cout << "\n";
+        if (counter == 0) {
+            InitialPosX = robotPose.x;
+            InitialPosY = robotPose.y;
+            InitialPosZ = robotPose.phi;
+
+        } else if (counter == 5) {
+            Navigation::moveToGoal(InitialPosX, InitialPosY, InitialPosZ);
+            std::cout << "Original location reached";
+            break;
+        }
 
         if (d[target] != 10) {
+
+            counter ++;
 
             double goalX = BoxCoord[target][0]+0.5*cos(BoxCoord[target][2]);
             double goalY = BoxCoord[target][1]+0.5*sin(BoxCoord[target][2]);
@@ -94,20 +101,33 @@ int main(int argc, char** argv) {
                 goalZ += pi;
             }
 
-            std::cout << goalX;
-            std::cout << "\n";
-            std::cout << goalY;
-            std::cout << "\n";
-            std::cout << "\n";
-
             Navigation::moveToGoal(goalX, goalY, goalZ);
 
             ros::spinOnce();
             usleep(1000);
 
-            do {  //add neg2 counter, if > 5, move robot a bit. Prevent stucking in the loop.
+            if (imagePipeline.getTemplateID(boxes) == -3) {
 
-            } while (imagePipeline.getTemplateID(boxes) == -2);
+                int c = 0, b = -1;
+                
+                while (c < 5) {
+
+                    goalX = BoxCoord[target][0]+(0.5 - 0.1*(b^c))*cos(BoxCoord[target][2]);
+                    goalY = BoxCoord[target][1]+(0.5 - 0.1*(b^c))*sin(BoxCoord[target][2]);
+                    goalZ = BoxCoord[target][2];
+                    Navigation::moveToGoal(goalX, goalY, goalZ);
+
+                    c++;
+                }
+                if (imagePipeline.getTemplateID(boxes) == -2)
+                    counter --;
+                    FootPrint[target] = 0;
+                    continue;
+            }
+
+            do {
+
+            }while (imagePipeline.getTemplateID(boxes) == -2);
 
             int Match1 = imagePipeline.getTemplateID(boxes);  //move robot for each match
             int Match2 = imagePipeline.getTemplateID(boxes);
@@ -115,11 +135,15 @@ int main(int argc, char** argv) {
 
             if (Match1 == Match2 && Match1 == Match3) {
                 if (Match1 != -1) {
+                    std::cout << "\n";
                     std::cout << "Match with Template " << Match1; 
+                    std::cout << "\n";
                     std::cout << "\n";
                 }
                 else {
+                    std::cout << "\n";
                     std::cout << "No match, blank pic detected";
+                    std::cout << "\n";
                     std::cout << "\n";
                 }
             }
@@ -132,25 +156,31 @@ int main(int argc, char** argv) {
                 ros::spinOnce();
                 // read image again
 
-                Match1 = imagePipeline.getTemplateID(boxes);  //also need to change to move robot for each match, or use do while
-                Match2 = imagePipeline.getTemplateID(boxes);
+                Match1 = imagePipeline.getTemplateID(boxes);  
                 Match3 = imagePipeline.getTemplateID(boxes);
 
                 if (Match1 == Match2 && Match1 == Match3) {
                     if (Match1 != -1) {
+                        std::cout << "\n";
                         std::cout << "Match with Template " << Match1;
+                        std::cout << "\n";
                         std::cout << "\n";
                     }
                     else {
+                        std::cout << "\n";
                         std::cout << "No match, blank pic detected";
+                        std::cout << "\n";
                         std::cout << "\n";
                     }
                 } else {
+                    std::cout << "\n";
                     std::cout << "ERROR";  //navigate robot to the next position and come back to this location later
+                    std::cout << "\n";
                     std::cout << "\n";
                 }
             }
         }
+        
 
         ros::Duration(0.01).sleep();
     }
