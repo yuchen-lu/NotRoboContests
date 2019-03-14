@@ -6,7 +6,7 @@
 #include "opencv2/xfeatures2d.hpp"
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -88,7 +88,7 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             
             if(good_matches.size()<4){            //return -2 if core dumped. Move robot and re-run imagepipeline
                 std::cout<<"error: core dumped(good match)                    ";
-                return -2;
+                return -3;
             }
            
             Mat img_matches;
