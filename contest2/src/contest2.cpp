@@ -2,11 +2,21 @@
 #include <navigation.h>
 #include <robot_pose.h>
 #include <imagePipeline.h>
+#include <fstream>
+
+using namespace std;
+
+double file_array[5][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
+
 
 float BoxCoord[5][3];
 double pi = 3.14;
 int FootPrint[5] = {0, 0, 0, 0, 0};
 float d[5];
+
+ofstream myfile;
+
+
 
 int FindTarget(float x, float y) {
 
@@ -139,12 +149,23 @@ int main(int argc, char** argv) {
                     std::cout << "Match with Template " << Match1; 
                     std::cout << "\n";
                     std::cout << "\n";
+                    
+                    //save tag and coords for printing
+                    file_array[counter-1][0] = Match1 + 1; //tag, plus 1 already !!
+                    file_array[counter-1][1] = BoxCoord[target][0]; // coords for box
+                    file_array[counter-1][2] = BoxCoord[target][1];
+                    file_array[counter-1][3] = BoxCoord[target][2];
                 }
                 else {
                     std::cout << "\n";
                     std::cout << "No match, blank pic detected";
                     std::cout << "\n";
                     std::cout << "\n";
+                    //save tag and coords for printingt
+                    file_array[counter-1][0] = -1.0; // tag
+                    file_array[counter-1][1] = BoxCoord[target][0]; // coords for box
+                    file_array[counter-1][2] = BoxCoord[target][1]; 
+                    file_array[counter-1][3] = BoxCoord[target][2];
                 }
             }
             else {  
@@ -165,12 +186,22 @@ int main(int argc, char** argv) {
                         std::cout << "Match with Template " << Match1;
                         std::cout << "\n";
                         std::cout << "\n";
+                        //save tag and coords for printing
+                        file_array[counter-1][0] = Match1 + 1; //tag, plus 1 already !!
+                        file_array[counter-1][1] = BoxCoord[target][0]; // coords for box
+                        file_array[counter-1][2] = BoxCoord[target][1]; 
+                        file_array[counter-1][3] = BoxCoord[target][2];
                     }
                     else {
                         std::cout << "\n";
                         std::cout << "No match, blank pic detected";
                         std::cout << "\n";
                         std::cout << "\n";
+                        //save tag and coords for printingt
+                        file_array[counter-1][0] = -1.0; // tag
+                        file_array[counter-1][1] = BoxCoord[target][0]; // coords for box
+                        file_array[counter-1][2] = BoxCoord[target][1];
+                        file_array[counter-1][3] = BoxCoord[target][2];
                     }
                 } else {
                     std::cout << "\n";
@@ -184,5 +215,27 @@ int main(int argc, char** argv) {
 
         ros::Duration(0.01).sleep();
     }
+
+
+
+    cout<<"about to save file.....................\n";
+    
+    myfile.open("/home/yuchen/catkin_ws/src/NotRoboContests/contest2/src/result.txt");
+    // save info in result.txt
+    if (myfile.is_open())
+    {
+    myfile << "Result format: tag, box.X, box.Y, box.Phi. -1 tag means empty\n";
+    for(int count = 0; count<= 4; count ++){
+        for (int j =0; j<4;j++){
+            myfile << file_array[count][j] << " " ;
+        }
+        myfile << "\n";
+    }
+    myfile.close();
+    }
+    else cout << "Unable to open file";
+
+    // ----------end of save to file---------
+    
     return 0;
 }
