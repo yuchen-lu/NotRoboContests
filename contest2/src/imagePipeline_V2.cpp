@@ -162,8 +162,8 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
               //  std::cout<<"side too short \n";
             }
             
-            cv::imshow("good match & object detection", img_matches);
-            cv::imshow("view", img);
+          //  cv::imshow("good match & object detection", img_matches);
+          //  cv::imshow("view", img);
             cv::waitKey(200);
         }
     }
