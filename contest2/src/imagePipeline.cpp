@@ -132,7 +132,6 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
                   scene_corners[3] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
             line( img_matches, scene_corners[3] + Point2f( img_object.cols, 0),
                   scene_corners[0] + Point2f( img_object.cols, 0), Scalar( 0, 255, 0), 4 );
-           // std::cout<<scene_corners[0]<<"\t"<<scene_corners[1]<<"\t"<<scene_corners[2]<<"\t"<<scene_corners[3]<<"\n";
 
             //-----------------------------------------------------check best match-------------------------------------------------------------//
             double Top,Right,Bottom,Left,leftDif,topDif,rightDif,bottomDif;
@@ -148,22 +147,16 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             bottomDif=abs(scene_corners[3].x-scene_corners[0].x);
 
 
-            if(Left>30 && Top>30 && Right>30 && Bottom>30){
-                //std::cout<<"length good\n";
-                if(leftDif<80 && topDif<80 && rightDif<80 && bottomDif<80){
-                   // std::cout<<"dif good\n";
+            if(Left>30 && Top>30 && Right>30 && Bottom>30){ //side length meet requirement
+                if(leftDif<80 && topDif<80 && rightDif<80 && bottomDif<80){  //Overall shape meet requirement
                     template_id = tempNumber+1;
                 }   
-                else{
-                  // std::cout<<"diff too large \n";
+                else{  //Overall shape does not meet requirement
                 }
             }
-            else{
-              //  std::cout<<"side too short \n";
+            else{   //Side length not meet requirement 
             }
             
-          //  cv::imshow("good match & object detection", img_matches);
-          //  cv::imshow("view", img);
             cv::waitKey(200);
         }
     }
