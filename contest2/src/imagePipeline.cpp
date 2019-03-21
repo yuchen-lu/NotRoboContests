@@ -150,11 +150,14 @@ int ImagePipeline::getTemplateID(Boxes& boxes) {
             if(Left>30 && Top>30 && Right>30 && Bottom>30){ //side length meet requirement
                 if(leftDif<80 && topDif<80 && rightDif<80 && bottomDif<80){  //Overall shape meet requirement
                     template_id = tempNumber+1;
+                    std::cout<<template_id<<"\n";
                 }   
                 else{  //Overall shape does not meet requirement
+                    std::cout<<"too tilt \n";
                 }
             }
             else{   //Side length not meet requirement 
+                std::cout<<"side too short \n";
             }
             
             cv::waitKey(200);
