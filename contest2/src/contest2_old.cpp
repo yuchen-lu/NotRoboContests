@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
 
     cout<<"about to save file.....................\n";
     
-    myfile.open("/home/yuchen/catkin_ws/src/NotRoboContests/contest2/src/result.txt"); // to be changed on contestday!
+    myfile.open("contestresult.txt"); // to be changed on contestday!
     // save info in result.txt
     if (myfile.is_open())
     {
