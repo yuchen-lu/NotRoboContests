@@ -11,11 +11,11 @@ double pi = 3.14;
 int FootPrint[5] = {0, 0, 0, 0, 0};
 float d[5];
 
-int FindTarget(float x, float y) {
+int FindTarget(float x, float y) { // find nearest object
 
     for(int i = 0; i < 5; i++) {
         if (FootPrint[i]==0) {
-            d[i] = sqrt((x - BoxCoord[i][0]) * (x - BoxCoord[i][0])  + (y - BoxCoord[i][1]) * (y - BoxCoord[i][1]));
+            d[i] = sqrt((x - BoxCoord[i][0]) * (x - BoxCoord[i][0])  + (y - BoxCoord[i][1]) * (y - BoxCoord[i][1])); // identify distances
         } else {
             d[i] = 100;
         }
@@ -23,7 +23,7 @@ int FindTarget(float x, float y) {
 
     int min = 0;
 
-    for(int k = 1; k < 5; k++) {
+    for(int k = 1; k < 5; k++) { // find closest
         if (d[k] < d[min]){
             min = k;
         }
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     ImagePipeline imagePipeline(n);
     // Execute strategy.
 
-    for(int j = 0; j < boxes.coords.size(); ++j) {
+    for(int j = 0; j < boxes.coords.size(); ++j) { // box coordinate
         BoxCoord[j][0] = boxes.coords[j][0];
         BoxCoord[j][1] = boxes.coords[j][1];
         BoxCoord[j][2] = boxes.coords[j][2];
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
     int counter = 0;
 
-    ofstream myfile;
+    ofstream myfile; // initialize result file
     myfile.open ("contest2Result.txt");
     myfile<<"Output format: template number\tX\tY\tPhi\n\n";
 
@@ -80,16 +80,16 @@ int main(int argc, char** argv) {
         float posX = robotPose.x;
         float posY = robotPose.y;
 
-        int target = FindTarget(posX, posY);
+        int target = FindTarget(posX, posY); // find closest object 
         FootPrint[target] = 1;
 
-        if (counter == 0) {
+        if (counter == 0) {  // record initial position
             InitialPosX = robotPose.x;
             InitialPosY = robotPose.y;
             InitialPosZ = robotPose.phi;
 
         } else if (counter == 5) {
-            Navigation::moveToGoal(InitialPosX, InitialPosY, InitialPosZ);
+            Navigation::moveToGoal(InitialPosX, InitialPosY, InitialPosZ); // move back to original location
             std::cout << "Original location reached \n";
             break;
         }
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
         if (d[target] != 10) {
 
             counter ++;
-
+            // move to 0.5 m in front of the object, face object
             double goalX = BoxCoord[target][0]+0.5*cos(BoxCoord[target][2]);
             double goalY = BoxCoord[target][1]+0.5*sin(BoxCoord[target][2]);
             double goalZ = BoxCoord[target][2];
@@ -146,12 +146,12 @@ int main(int argc, char** argv) {
             int Match2 = imagePipeline.getTemplateID(boxes);
             int Match3 = imagePipeline.getTemplateID(boxes);
 
-            if (Match1 == Match2 && Match1 == Match3) {
-                if (Match1 != 0) {
+            if (Match1 == Match2 && Match1 == Match3) { // confirm match
+                if (Match1 != 0) { // found a template that match
                     std::cout << "Match with Template " << Match1  <<"\n\n"; 
                     myfile<<"Template "<<Match1<<"\t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n";
                 }
-                else {
+                else { // found no template that match
                     std::cout << "No match, blank pic detected \n\n";
                     myfile<<"no match \t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n";
                 }
@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
                 goalZ = BoxCoord[target][2];
                 Navigation::moveToGoal(goalX, goalY, goalZ);
                 ros::spinOnce();
-                // read image again
+                // read image again, repeat code above
 
                 Match1 = imagePipeline.getTemplateID(boxes);  //Re-take three measurements to confirm they match
                 Match2 = imagePipeline.getTemplateID(boxes);
@@ -171,16 +171,16 @@ int main(int argc, char** argv) {
 
                 if (Match1 == Match2 && Match1 == Match3) {
                     if (Match1 != 0) {
-                        std::cout << "Match with Template " << Match1 <<"\n\n";
+                        std::cout << "Match with Template " << Match1 <<"\n\n"; // write template number and box coord to result file
                         myfile<<"Template "<<Match1<<"\t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n"; 
                     }
                     else {
-                        std::cout << "No match, blank pic detected \n\n";
+                        std::cout << "No match, blank pic detected \n\n"; // write to result file
                         myfile<<"no match \t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n";
                     }
                 } else {
                     std::cout << "ERROR \n";  //Posible solution: navigate robot to the next position and come back to this location later
-                    myfile<<"Error \t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n";
+                    myfile<<"Error \t"<<BoxCoord[target][0]<<"\t"<<BoxCoord[target][1]<<"\t"<<BoxCoord[target][2]<<"\n"; // write to result file
                 }
             }
         }
