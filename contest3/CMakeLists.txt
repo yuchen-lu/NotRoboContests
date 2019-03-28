@@ -6,7 +6,8 @@ find_package(OpenCV 3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
 		cv_bridge 
 		image_transport 
-		sensor_msgs)
+		sensor_msgs
+		kobuki_msgs)
 
 catkin_package()
 

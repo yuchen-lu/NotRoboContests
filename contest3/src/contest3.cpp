@@ -1,6 +1,8 @@
 #include <header.h>
 #include <ros/package.h>
 #include <imageTransporter.hpp>
+#include <kobuki_msgs/BumperEvent.h>
+
 
 using namespace std;
 
@@ -11,7 +13,7 @@ void followerCB(const geometry_msgs::Twist msg){
     follow_cmd = msg;
 }
 
-void bumperCB(const geometry_msgs::Twist msg){
+void bumperCB(const kobuki_msgs::BumperEvent msg){
     //Fill with code
 }
 
