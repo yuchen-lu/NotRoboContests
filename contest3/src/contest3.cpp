@@ -15,6 +15,7 @@ void followerCB(const geometry_msgs::Twist msg){
 
 void bumperCB(const kobuki_msgs::BumperEvent msg){
     //Fill with code
+	//change bumper state
 }
 
 //-------------------------------------------------------------
