@@ -3,7 +3,6 @@
 #include <imageTransporter.hpp>
 #include <kobuki_msgs/BumperEvent.h>
 
-
 using namespace std;
 
 geometry_msgs::Twist follow_cmd;
@@ -15,7 +14,8 @@ void followerCB(const geometry_msgs::Twist msg){
 
 void bumperCB(const kobuki_msgs::BumperEvent msg){
     //Fill with code
-	//change bumper state
+	//change world_state for emotion indication
+	//backup a little bit???
 }
 
 //-------------------------------------------------------------
@@ -54,20 +54,22 @@ int main(int argc, char **argv)
 	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
-		//eStop.block();
+		eStop.block();
 		//...................................
+
+		//----------------change world state according to emotional sensor feedback------------
 
 		if(world_state == 0){
 			//fill with your code
-			//vel_pub.publish(vel);
 			vel_pub.publish(follow_cmd);
 
 		}else if(world_state == 1){
-			/*
-			...
-			...
-			*/
+			
+			//-----------------------***Note*** the sc.playWave() function does NOT stop the running of the main program!!!--------
+			// -------------- Need add finite sleep() when playing soundtrack----------then call sc.stopWave()-------------------
+			
 		}
+		world_state=0;  //----------------------continue follower function after action---------------------------
 	}
 
 	return 0;
