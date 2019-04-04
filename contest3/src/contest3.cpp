@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
 		//...................................
-
+		//ROS_INFO("follow_cmd.angular.x is %f", follow_cmd.angular.x);
 		//----------------change world state according to emotional sensor feedback------------the order follows the priority of a real human
 		
 		if(bumperCenter || bumperLeft || bumperRight){  
@@ -141,17 +141,20 @@ int main(int argc, char **argv)
 		/*else if(){
 			world_state=4;  //see the picture of another turtlebot, case 4
 		}*/
-		else if(follow_cmd.angular.x==100){
+		else if(follow_cmd.angular.z == 0 &&  follow_cmd.linear.x == 0){
 			world_state=1; //lose track of object, case 1
+			// follow_cmd.angular.z=0;
+
 		}
+
 
 		//------------------------Take actions according to world state--------------------------------
 		if(world_state == 0){	 // object detected, continue following
 			vel_pub.publish(follow_cmd);
-			cout<<"following\n";
+			//cout<<"following\n";
 		}
 		else if(world_state == 1){   //object lost, play confused sound
-			follow_cmd.angular.x=0;
+		//	follow_cmd.angular.x=0;
 			vel_pub.publish(follow_cmd);  // stop the robot
 			sc.playWave(path_to_sounds + "sound.wav");
 			cout<<"object lost\n";
