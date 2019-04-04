@@ -1,4 +1,3 @@
-
 #include <imagePipeline.h>
 #include<iostream>
 #include<stdio.h>
@@ -6,6 +5,10 @@
 #include "opencv2/features2d.hpp"
 #include "opencv2/xfeatures2d.hpp"
 #include <ros/ros.h>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/highgui.hpp"
+#include <std_msgs/Int8.h>
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
 #define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
@@ -13,6 +16,9 @@
 using namespace cv;
 using namespace std;
 using namespace cv::xfeatures2d;
+
+bool isValid;
+Mat img;
 
 ImagePipeline::ImagePipeline(ros::NodeHandle& n) {
     image_transport::ImageTransport it(n);
@@ -34,10 +40,10 @@ void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     }
 }
 
-void main(int argc, char **argv) {
+int main(int argc, char **argv) {
 
     ros::NodeHandle n;
-    ros::Publisher img_pub = n.advertise<std_msgs::int>("img_contest3", 1);
+    ros::Publisher img_pub = n.advertise<std_msgs::Int8>("img_contest3", 1);
 
     int template_id = 0;
 
@@ -54,7 +60,7 @@ void main(int argc, char **argv) {
         template_id = 0;
         while (ros::ok()) {
             // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
-            Mat img_object = imread("/home/tianli/catkin_ws/src/mie443_contest3/bot.png", CV_LOAD_IMAGE_GRAYSCALE);
+            Mat img_object = imread("/home/ziqi/catkin_ws/src/mie443_contest3/bot.png", IMREAD_GRAYSCALE);
             Mat img_scene = img;
 
             if( !img_scene.data )  //If camera data is missing
@@ -178,8 +184,9 @@ void main(int argc, char **argv) {
                 
                 cv::waitKey(200);
 
-                 img_pub.publish(template_id);
+                img_pub.publish(template_id);
             }
         }
     }
+    return 0;
 }
