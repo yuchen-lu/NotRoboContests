@@ -9,8 +9,6 @@
 
 using namespace std;
 
-
-
 //follower variables
 geometry_msgs::Twist follow_cmd;
 int world_state;
@@ -143,7 +141,7 @@ int main(int argc, char **argv)
 		/*else if(){
 			world_state=4;  //see the picture of another turtlebot, case 4
 		}*/
-		else if(follow_cmd.linear.x==0&&follow_cmd.linear.y==0&&follow_cmd.linear.z==0&&follow_cmd.angular.x==0&&follow_cmd.linear.y==0&&follow_cmd.linear.z==0){
+		else if(follow_cmd.angular.x==100){
 			world_state=1; //lose track of object, case 1
 		}
 
@@ -153,6 +151,7 @@ int main(int argc, char **argv)
 			cout<<"following\n";
 		}
 		else if(world_state == 1){   //object lost, play confused sound
+			follow_cmd.angular.x=0;
 			vel_pub.publish(follow_cmd);  // stop the robot
 			sc.playWave(path_to_sounds + "sound.wav");
 			cout<<"object lost\n";
