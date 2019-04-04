@@ -24,16 +24,19 @@ ImagePipeline::ImagePipeline(ros::NodeHandle& n) {
     image_transport::ImageTransport it(n);
     sub = it.subscribe(IMAGE_TOPIC, 1, &ImagePipeline::imageCallback, this);
     isValid = false;
+    cout<<"img pipe\n";
 }
 
 void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     try {
+        cout<<"try\n";
         if(isValid) {
             img.release();
         }
-        img = (cv_bridge::toCvShare(msg, IMAGE_TYPE)->image).clone();
+        img = (cv_bridge::toCvShare(msg, IMAGE_TYPE)->image).clone();box
         isValid = true;
     } catch (cv_bridge::Exception& e) {
+        cout<<"catch\n";
         std::cout << "ERROR: Could not convert from " << msg->encoding.c_str()
                   << " to " << IMAGE_TYPE.c_str() << "!" << std::endl;
         isValid = false;
@@ -42,9 +45,9 @@ void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
 int main(int argc, char **argv) {
 
+    ros::init(argc,argv,"OCV");
     ros::NodeHandle n;
     ros::Publisher img_pub = n.advertise<std_msgs::Int8>("img_contest3", 1);
-
 
     std_msgs::Int8 banana;
 
