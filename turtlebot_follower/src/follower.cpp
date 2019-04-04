@@ -220,7 +220,9 @@ private:
 
       if (enabled_)
       {
-        cmdpub_.publish(geometry_msgs::TwistPtr(new geometry_msgs::Twist()));
+        geometry_msgs::TwistPtr cmd2(new geometry_msgs::Twist())
+        cmd2->angular.x=100;
+        cmdpub_.publish(cmd2);
       }
     }
 
