@@ -45,6 +45,9 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::Publisher img_pub = n.advertise<std_msgs::Int8>("img_contest3", 1);
 
+
+    std_msgs::Int8 banana;
+
     int template_id = 0;
 
     if(!isValid) {
@@ -183,8 +186,8 @@ int main(int argc, char **argv) {
                 }
                 
                 cv::waitKey(200);
-
-                img_pub.publish(template_id);
+                banana.data = template_id;
+                img_pub.publish(banana);
             }
         }
     }
