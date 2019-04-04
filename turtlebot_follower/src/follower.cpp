@@ -220,9 +220,10 @@ private:
 
       if (enabled_)
       {
-        geometry_msgs::TwistPtr cmd2(new geometry_msgs::Twist())
-        cmd2->angular.x=100;
-        cmdpub_.publish(cmd2);
+        ///ROS_INFO("ENABLED"); // NEW
+        geometry_msgs::TwistPtr cmd(new geometry_msgs::Twist());
+       // cmd->angular.x=0.5;
+        cmdpub_.publish(cmd);
       }
     }
 
