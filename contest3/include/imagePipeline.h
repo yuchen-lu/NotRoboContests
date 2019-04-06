@@ -8,10 +8,11 @@
 
 class ImagePipeline {
     private:
-        cv::Mat img;
-        bool isValid;
+        
         image_transport::Subscriber sub;
     public:
         ImagePipeline(ros::NodeHandle& n);
         void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+	
+        
 };
