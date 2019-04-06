@@ -24,7 +24,7 @@ image_transport::Subscriber sub;
 ImagePipeline::ImagePipeline(ros::NodeHandle &n)
 {
     image_transport::ImageTransport it(n);
-    sub = it.subscribe(IMAGE_TOPIC, 1, &ImagePipeline::imageCallback, this);  //does not enter callback??
+    sub = it.subscribe(IMAGE_TOPIC, 1, &ImagePipeline::imageCallback, this);
     isValid = false;
 }
 
@@ -38,7 +38,6 @@ void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr &msg)
         }
         isValid = true;
         img = (cv_bridge::toCvShare(msg, IMAGE_TYPE)->image).clone();
-        if (img.empty() || img.rows <= 0 || img.cols <= 0) cout<<"img is empty!!!!";
     }
     catch (cv_bridge::Exception &e)
     {
