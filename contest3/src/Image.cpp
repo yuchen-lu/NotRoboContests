@@ -19,26 +19,26 @@ using namespace cv::xfeatures2d;
 
 bool isValid;
 cv::Mat img;
+image_transport::Subscriber sub;
 
 ImagePipeline::ImagePipeline(ros::NodeHandle &n)
 {
     image_transport::ImageTransport it(n);
     sub = it.subscribe(IMAGE_TOPIC, 1, &ImagePipeline::imageCallback, this);  //does not enter callback??
-    cout<<"imagePipeline excuted\n";
     isValid = false;
 }
 
 void ImagePipeline::imageCallback(const sensor_msgs::ImageConstPtr &msg)
 {
-    cout<<"callback\n";
     try
     {
         if (isValid)
         {
             img.release();
         }
-        img = (cv_bridge::toCvShare(msg, IMAGE_TYPE)->image).clone();
         isValid = true;
+        img = (cv_bridge::toCvShare(msg, IMAGE_TYPE)->image).clone();
+        if (img.empty() || img.rows <= 0 || img.cols <= 0) cout<<"img is empty!!!!";
     }
     catch (cv_bridge::Exception &e)
     {
@@ -53,38 +53,32 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "OCV");
     ros::NodeHandle n;
-    ImagePipeline ImagePpeline(n);
-    ros::spinOnce();
+    ImagePipeline ImagePipeline(n);
 
     ros::Publisher img_pub = n.advertise<std_msgs::Int8>("img_contest3/imagetrans", 1);
 
     std_msgs::Int8 banana;
 
-    int template_id = 0; //test print, not working
-    banana.data=template_id;
-    img_pub.publish(banana);
-
-    if (!isValid)
-    {
-        std::cout << "ERROR: INVALID IMAGE!" << std::endl;
-        banana.data=template_id;   //test print, not working
-        img_pub.publish(banana);
-        cout<<"done publishing\n";
-    }
-    else if (img.empty() || img.rows <= 0 || img.cols <= 0)
-    {
-        std::cout << "ERROR: VALID IMAGE, BUT STILL A PROBLEM EXISTS!" << std::endl;
-        std::cout << "img.empty():" << img.empty() << std::endl;
-        std::cout << "img.rows:" << img.rows << std::endl;
-        std::cout << "img.cols:" << img.cols << std::endl;
-    }
-    else
-    {
-        /***YOUR CODE HERE***/
-        // Use: boxes.box
-        template_id = 0;
-        while (ros::ok())
+    int template_id = 0;
+    
+    while(ros::ok()){
+        ros::spinOnce();
+        ros::Duration(0.5).sleep();
+        
+        if (!isValid)
         {
+            std::cout << "ERROR: INVALID IMAGE!" << std::endl;
+        }
+        else if (img.empty() || img.rows <= 0 || img.cols <= 0)
+        {
+            std::cout << "ERROR: VALID IMAGE, BUT STILL A PROBLEM EXISTS!" << std::endl;
+            std::cout << "img.empty():" << img.empty() << std::endl;
+            std::cout << "img.rows:" << img.rows << std::endl;
+            std::cout << "img.cols:" << img.cols << std::endl;
+        }
+        else
+        {   
+            template_id = 0;
             // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
             Mat img_object = imread("/home/ziqi/catkin_ws/src/mie443_contest3/bot.png", IMREAD_GRAYSCALE);
             Mat img_scene = img;
@@ -100,9 +94,7 @@ int main(int argc, char **argv)
                 template_id = -1;
             }
 
-            if (template_id != -1)
-            {
-
+            if (template_id != -1){
                 //----------------------------------Detect the keypoints and calculate descriptors using SURF Detector---------------------------//
                 int minHessian = 400;
                 Ptr<SURF> detector = SURF::create(minHessian);
@@ -120,8 +112,7 @@ int main(int argc, char **argv)
                 double max_dist = 0;
                 double min_dist = 100;
 
-                for (int i = 0; i < descriptors_object.rows; i++)
-                {
+                for (int i = 0; i < descriptors_object.rows; i++){
                     double dist = matches[i].distance;
                     if (dist < min_dist)
                         min_dist = dist;
@@ -143,86 +134,92 @@ int main(int argc, char **argv)
                 if (good_matches.size() < 4)
                 { //return -2 if core dumped. Move robot and re-run imagepipeline
                     std::cout << "error: core dumped(good match)                    ";
-                    template_id = 0;
+                    template_id = -2;
                 }
+                if (template_id!=-2){
+                    Mat img_matches;
+                    drawMatches(img_object, keypoints_object, img_scene, keypoints_scene, good_matches, img_matches,
+                                Scalar::all(-1), Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
-                Mat img_matches;
-                drawMatches(img_object, keypoints_object, img_scene, keypoints_scene, good_matches, img_matches,
-                            Scalar::all(-1), Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+                    //--------------------------------------------Getting corresponding matched keypoints-----------------------------------------------//
+                    //Localize the object
+                    std::vector<Point2f> obj;
+                    std::vector<Point2f> scene;
 
-                //--------------------------------------------Getting corresponding matched keypoints-----------------------------------------------//
-                //Localize the object
-                std::vector<Point2f> obj;
-                std::vector<Point2f> scene;
-
-                for (int i = 0; i < good_matches.size(); i++)
-                {
-                    obj.push_back(keypoints_object[good_matches[i].queryIdx].pt);
-                    scene.push_back(keypoints_scene[good_matches[i].trainIdx].pt);
-                }
-
-                //----------------------------------------------------Object/Scene Transformation----------------------------------------------------//
-                Mat H = findHomography(obj, scene, RANSAC);
-                if (H.rows < 3 || H.cols < 3)
-                { //return -2 if core dumped
-                    std::cout << "error: core dumped(H)                     ";
-                    template_id = 0;
-                }
-
-                //Get the corners from the image_1 ( the object to be "detected" )
-                std::vector<Point2f> obj_corners(4);
-                obj_corners[0] = cvPoint(0, 0);
-                obj_corners[1] = cvPoint(img_object.cols, 0);
-                obj_corners[2] = cvPoint(img_object.cols, img_object.rows);
-                obj_corners[3] = cvPoint(0, img_object.rows);
-                std::vector<Point2f> scene_corners(4);
-                perspectiveTransform(obj_corners, scene_corners, H);
-
-                //------------------------------------Print the bounded object in the scene (draw lines)---------------------------------------------//
-                line(img_matches, scene_corners[0] + Point2f(img_object.cols, 0),
-                     scene_corners[1] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
-                line(img_matches, scene_corners[1] + Point2f(img_object.cols, 0),
-                     scene_corners[2] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
-                line(img_matches, scene_corners[2] + Point2f(img_object.cols, 0),
-                     scene_corners[3] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
-                line(img_matches, scene_corners[3] + Point2f(img_object.cols, 0),
-                     scene_corners[0] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
-
-                //-----------------------------------------------------check best match-------------------------------------------------------------//
-                double Top, Right, Bottom, Left, leftDif, topDif, rightDif, bottomDif;
-
-                Left = abs(scene_corners[0].x - scene_corners[1].x); //Calculate side length
-                Top = abs(scene_corners[1].y - scene_corners[2].y);
-                Right = abs(scene_corners[2].x - scene_corners[3].x);
-                Bottom = abs(scene_corners[3].y - scene_corners[0].y);
-
-                leftDif = abs(scene_corners[0].y - scene_corners[1].y);
-                topDif = abs(scene_corners[1].x - scene_corners[2].x);
-                rightDif = abs(scene_corners[2].y - scene_corners[3].y);
-                bottomDif = abs(scene_corners[3].x - scene_corners[0].x);
-
-                if (Left > 30 && Top > 30 && Right > 30 && Bottom > 30)
-                { //side length meet requirement
-                    if (leftDif < 80 && topDif < 80 && rightDif < 80 && bottomDif < 80)
-                    { //Overall shape meet requirement
-                        template_id = 1;
-                        std::cout << template_id << "\n";
+                    for (int i = 0; i < good_matches.size(); i++)
+                    {
+                        obj.push_back(keypoints_object[good_matches[i].queryIdx].pt);
+                        scene.push_back(keypoints_scene[good_matches[i].trainIdx].pt);
                     }
-                    else
-                    { //Overall shape does not meet requirement
-                        template_id = 0;
+
+                    //----------------------------------------------------Object/Scene Transformation----------------------------------------------------//
+                    Mat H = findHomography(obj, scene, RANSAC);
+                    if (H.rows < 3 || H.cols < 3)
+                    { //return -2 if core dumped
+                        std::cout << "error: core dumped(H)                     ";
+                        template_id = -2;
+                    }
+                    
+                    if (template_id!=-2){
+                        //Get the corners from the image_1 ( the object to be "detected" )
+                        std::vector<Point2f> obj_corners(4);
+                        obj_corners[0] = cvPoint(0, 0);
+                        obj_corners[1] = cvPoint(img_object.cols, 0);
+                        obj_corners[2] = cvPoint(img_object.cols, img_object.rows);
+                        obj_corners[3] = cvPoint(0, img_object.rows);
+                        std::vector<Point2f> scene_corners(4);
+                        perspectiveTransform(obj_corners, scene_corners, H);
+
+                        //------------------------------------Print the bounded object in the scene (draw lines)---------------------------------------------//
+                        line(img_matches, scene_corners[0] + Point2f(img_object.cols, 0),
+                            scene_corners[1] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
+                        line(img_matches, scene_corners[1] + Point2f(img_object.cols, 0),
+                            scene_corners[2] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
+                        line(img_matches, scene_corners[2] + Point2f(img_object.cols, 0),
+                            scene_corners[3] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
+                        line(img_matches, scene_corners[3] + Point2f(img_object.cols, 0),
+                            scene_corners[0] + Point2f(img_object.cols, 0), Scalar(0, 255, 0), 4);
+
+                        //-----------------------------------------------------check best match-------------------------------------------------------------//
+                        double Top, Right, Bottom, Left, leftDif, topDif, rightDif, bottomDif;
+
+                        Left = abs(scene_corners[0].x - scene_corners[1].x); //Calculate side length
+                        Top = abs(scene_corners[1].y - scene_corners[2].y);
+                        Right = abs(scene_corners[2].x - scene_corners[3].x);
+                        Bottom = abs(scene_corners[3].y - scene_corners[0].y);
+
+                        leftDif = abs(scene_corners[0].y - scene_corners[1].y);
+                        topDif = abs(scene_corners[1].x - scene_corners[2].x);
+                        rightDif = abs(scene_corners[2].y - scene_corners[3].y);
+                        bottomDif = abs(scene_corners[3].x - scene_corners[0].x);
+
+                        if (Left > 30 && Top > 30 && Right > 30 && Bottom > 30)
+                        { //side length meet requirement
+                            if (leftDif < 200 && topDif < 200 && rightDif < 200 && bottomDif < 200)
+                            { //Overall shape meet requirement
+                                template_id = 1;
+                                std::cout << template_id << "\n";
+                            }
+                            else
+                            { //Overall shape does not meet requirement
+                                template_id = 0;
+                                //cout<<"shape not good\n";
+                            }
+                        }
+                        else
+                        { //Side length not meet requirement
+                            template_id = 0;
+                            //cout<<"length not good\n";
+                        }
+
+                        cv::waitKey(500);
+                        banana.data = template_id;
+                        img_pub.publish(banana);
                     }
                 }
-                else
-                { //Side length not meet requirement
-                    template_id = 0;
-                }
-
-                cv::waitKey(200);
-                banana.data = template_id;
-                img_pub.publish(banana);
             }
         }
     }
+
     return 0;
 }
