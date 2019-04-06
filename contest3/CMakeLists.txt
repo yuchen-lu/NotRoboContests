@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(mie443_contest3)
 
 find_package(OpenCV 3 REQUIRED)
-
 find_package(catkin REQUIRED COMPONENTS
 		cv_bridge 
 		image_transport 
