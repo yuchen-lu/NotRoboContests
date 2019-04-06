@@ -77,6 +77,7 @@ int main(int argc, char **argv)
         }
         else
         {   
+            cout<<"Running...\n";
             template_id = 0;
             // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
             Mat img_object = imread("/home/ziqi/catkin_ws/src/mie443_contest3/bot.png", IMREAD_GRAYSCALE);
