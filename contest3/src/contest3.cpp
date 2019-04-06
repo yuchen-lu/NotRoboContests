@@ -41,12 +41,12 @@ void bumperCB(const kobuki_msgs::BumperEvent msg){
 		bumperRight = !bumperRight;
 }
 
-//odom callback
+/*odom callback
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 	posX = msg->pose.pose.position.x;
 	posY = msg->pose.pose.position.y; 
 	yaw = tf::getYaw(msg->pose.pose.orientation);  // convert queration to euler angles
-}
+}*/
 
 //cliff callback
 void cliffCB(const kobuki_msgs::CliffEvent msg){
@@ -66,25 +66,33 @@ void cliffCB(const kobuki_msgs::CliffEvent msg){
 
 void backup() { // backup if hit bumper
 	ros::NodeHandle nh;
-	ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
+	//ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback); 
 	
  	//create a publisher named vel_pub; msg type is Twist; will send msg thru topic teleop;  size of the message queue is 1
 	ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1); 
 
-	geometry_msgs::Twist vel;
+	//geometry_msgs::Twist vel;
+	geometry_msgs::TwistPtr cmd(new geometry_msgs::Twist());
 
-	double currentX=posX;
-	double currentY=posY;
+	ros::Time start = ros::Time::now();
+	int bump_counter =0;
+	ros::Duration diff = ros::Time::now() - start;
+	double diff_sec= diff.toSec();
 
-	while(sqrt((currentX-posX)*(currentX-posX)+(currentY-posY)*(currentY-posY)) < 0.5){ // backup 0.5m
+	while(diff_sec < 2){ // backup for 1 sec
+
+		cout<<"backup";
 		
 		ros::spinOnce();
 		angular = 0;
 		linear = -0.1;
 
-		vel.angular.z = angular; 
-		vel.linear.x = linear;
-		vel_pub.publish(vel);
+		cmd->angular.z = angular; 
+		cmd->linear.x = linear;
+		vel_pub.publish(cmd);
+
+		diff = ros::Time::now() - start;
+		diff_sec= diff.toSec();
 	}
 
 	bumperCenter = 0;
@@ -124,6 +132,13 @@ int main(int argc, char **argv)
 	vel.angular.z = angular;
 	vel.linear.x = linear;
 
+	ros::Time start;
+	int bump_counter =0;
+	ros::Duration diff;
+	double diff_sec;
+
+	int lost_counter= 0;
+
 	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
@@ -134,6 +149,30 @@ int main(int argc, char **argv)
 		
 		if(bumperCenter || bumperLeft || bumperRight){  
 			world_state=2; // hit object, case 2
+			bump_counter ++;
+			if (bump_counter == 1) {
+				start = ros::Time::now();
+
+			} else if (bump_counter == 2) {
+				
+				diff = ros::Time::now() - start;
+				diff_sec = diff.toSec();
+
+				if (diff_sec > 120){
+					bump_counter = 0;
+				}
+			} else if (bump_counter == 3) {
+
+				diff = ros::Time::now() - start;
+				diff_sec = diff.toSec();
+
+				if (diff_sec > 120){
+					bump_counter = 0;
+				} else {
+					world_state=4;
+					bump_counter = 0;
+				}
+			}
 		}
 		else if(cliffCenter && cliffLeft && cliffRight){
 			world_state=3;  //lifed up, case 3
@@ -142,6 +181,10 @@ int main(int argc, char **argv)
 			world_state=4;  //see the picture of another turtlebot, case 4
 		}*/
 		else if(follow_cmd.angular.z == 0 &&  follow_cmd.linear.x == 0){
+			lost_counter ++;
+			if (lost_counter == 1) {
+				continue;
+			}
 			world_state=1; //lose track of object, case 1
 			// follow_cmd.angular.z=0;
 
@@ -163,19 +206,20 @@ int main(int argc, char **argv)
 		else if(world_state == 2){    //hit object, play sad (cry) sound, back up 0.5m
 			sc.playWave(path_to_sounds + "sound.wav");
 			cout<<"hit\n";
-			ros::Duration(5.0).sleep();
+			ros::Duration(1.0).sleep();
 			backup();
 		}
 		else if(world_state==3){   //lifed up, play scared sound
-			while(cliffCenter && cliffLeft && cliffRight){
-				sc.playWave(path_to_sounds + "sound.wav");
-				ros::Duration(1.0).sleep();
-				cout<<"lift\n";
-				ros::spinOnce();	
-			}
+			sc.playWave(path_to_sounds + "sound.wav");
+			ros::Duration(5.0).sleep();
+			cout<<"lift\n";
+			ros::spinOnce();	
 		}
 		else if(world_state==4){   //see the picture of another turtlebot, play infatuated sound
-
+			sc.playWave(path_to_sounds + "sound.wav");
+			cout<<"hit too many times!\n";
+			ros::Duration(5.0).sleep();
+			backup();
 		}
 
 		world_state=0;  //----------------------continue follower function after action---------------------------
