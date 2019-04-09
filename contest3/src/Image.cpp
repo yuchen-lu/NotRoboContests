@@ -11,7 +11,7 @@
 #include <std_msgs/Int8.h>
 
 #define IMAGE_TYPE sensor_msgs::image_encodings::BGR8
-#define IMAGE_TOPIC "camera/image" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
+#define IMAGE_TOPIC "camera/rgb/image_raw" // kinect:"camera/rgb/image_raw" webcam:"camera/image"
 
 using namespace cv;
 using namespace std;
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
             cout<<"Running...\n";
             template_id = 0;
             // ---------------------------------------------Read in the tempate object image-------------------------------------------------//
-            Mat img_object = imread("/home/ziqi/catkin_ws/src/mie443_contest3/bot.png", IMREAD_GRAYSCALE);
+            Mat img_object = imread("/home/turtlebot/catkin_ws/src/NotRoboContests/contest3/src/bot.png", IMREAD_GRAYSCALE);
             Mat img_scene = img;
 
             if (!img_scene.data) //If camera data is missing
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 
                         if (Left > 30 && Top > 30 && Right > 30 && Bottom > 30)
                         { //side length meet requirement
-                            if (leftDif < 200 && topDif < 200 && rightDif < 200 && bottomDif < 200)
+                            if (leftDif <120 && topDif < 120 && rightDif < 120 && bottomDif < 120)
                             { //Overall shape meet requirement
                                 template_id = 1;
                                 std::cout << template_id << "\n";
